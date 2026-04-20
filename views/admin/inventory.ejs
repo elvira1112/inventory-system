@@ -1,0 +1,64 @@
+<%- include('../partials/admin-header') %>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2><i class="bi bi-box"></i> 库存概览</h2>
+  <div>
+    <a href="/admin/export/inventory" class="btn btn-success">
+      <i class="bi bi-file-earmark-excel"></i> 导出库存报表
+    </a>
+    <a href="/admin/export/usage" class="btn btn-outline-success">
+      <i class="bi bi-file-earmark-excel"></i> 导出领用明细
+    </a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <% if (inventory.length === 0) { %>
+      <div class="text-center text-muted py-4">
+        <i class="bi bi-inbox fs-1"></i>
+        <p>暂无库存数据</p>
+      </div>
+    <% } else { %>
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead class="table-light">
+            <tr>
+              <th>活动名称</th>
+              <th>宣传品名称</th>
+              <th>单位</th>
+              <th>总数量</th>
+              <th>已分配</th>
+              <th>已使用</th>
+              <th>未分配</th>
+              <th>分配率</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% inventory.forEach(function(item) { %>
+              <% var rate = item.total_quantity > 0 ? Math.round(item.allocated / item.total_quantity * 100) : 0; %>
+              <tr>
+                <td><%= item.activity_name %></td>
+                <td><strong><%= item.material_name %></strong></td>
+                <td><%= item.unit %></td>
+                <td><%= item.total_quantity %></td>
+                <td><span class="badge bg-info"><%= item.allocated %></span></td>
+                <td><span class="badge bg-warning text-dark"><%= item.used %></span></td>
+                <td><span class="badge bg-success"><%= item.unallocated %></span></td>
+                <td>
+                  <div class="progress" style="width: 100px; height: 20px;">
+                    <div class="progress-bar" role="progressbar" style="width: <%= rate %>%">
+                      <%= rate %>%
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

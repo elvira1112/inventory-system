@@ -1,0 +1,59 @@
+<%- include('../partials/admin-header') %>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <a href="/admin/activities" class="btn btn-outline-secondary btn-sm mb-2">
+      <i class="bi bi-arrow-left"></i> 返回
+    </a>
+    <h2><i class="bi bi-calendar-event"></i> <%= activity.name %></h2>
+  </div>
+</div>
+
+<!-- 宣传品列表 -->
+<div class="card">
+  <div class="card-header">
+    <i class="bi bi-box"></i> 宣传品列表
+  </div>
+  <div class="card-body">
+    <% if (materials.length === 0) { %>
+      <div class="text-center text-muted py-4">
+        <i class="bi bi-inbox fs-1"></i>
+        <p>暂无宣传品</p>
+      </div>
+    <% } else { %>
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead>
+            <tr>
+              <th>宣传品名称</th>
+              <th>单位</th>
+              <th>总数量</th>
+              <th>已分配</th>
+              <th>已使用</th>
+              <th>未分配</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% materials.forEach(function(m) { %>
+              <tr>
+                <td><strong><%= m.name %></strong></td>
+                <td><%= m.unit %></td>
+                <td><%= m.total_quantity %></td>
+                <td><span class="badge bg-info"><%= m.allocated %></span></td>
+                <td><span class="badge bg-warning"><%= m.used %></span></td>
+                <td>
+                  <% var unallocated = m.total_quantity - m.allocated; %>
+                  <span class="badge <%= unallocated > 0 ? 'bg-success' : 'bg-secondary' %>">
+                    <%= unallocated %>
+                  </span>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

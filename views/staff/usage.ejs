@@ -1,0 +1,149 @@
+<%- include('../partials/staff-header') %>
+
+<h2 class="mb-4"><i class="bi bi-pencil-square"></i> 领用录入</h2>
+
+<div class="row">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header">
+        <i class="bi bi-plus-circle"></i> 新增领用记录
+      </div>
+      <div class="card-body">
+        <% if (materials.length === 0) { %>
+          <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle"></i> 暂无可领用的宣传品（库存已用完或未分配）
+          </div>
+        <% } else { %>
+          <form method="POST" action="/staff/usage">
+            <div class="mb-3">
+              <label class="form-label">选择宣传品 <span class="text-danger">*</span></label>
+              <select name="material_id" id="materialSelect" class="form-select" required>
+                <option value="">-- 请选择 --</option>
+                <% materials.forEach(function(m) { %>
+                  <option value="<%= m.material_id %>" data-remaining="<%= m.remaining %>" data-unit="<%= m.unit %>">
+                    【<%= m.activity_name %>】<%= m.material_name %>
+                  </option>
+                <% }); %>
+              </select>
+            </div>
+
+            <div id="stockInfo" class="alert alert-info mb-3" style="display: none;">
+              <i class="bi bi-box"></i> 当前可用库存: <strong id="stockRemaining">0</strong> <span id="stockUnit"></span>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">领用数量 <span class="text-danger">*</span></label>
+              <input type="number" name="quantity" id="quantityInput" class="form-control" min="1" required placeholder="请输入领用数量">
+              <div id="quantityWarning" class="form-text text-danger" style="display: none;">
+                领用数量超过可用库存！
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">领用客户名称 <span class="text-danger">*</span></label>
+              <input type="text" name="customer_name" class="form-control" required placeholder="请输入领用客户的姓名">
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">备注</label>
+              <textarea name="remark" class="form-control" rows="2" placeholder="可选，填写领用说明"></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-check-lg"></i> 提交领用
+            </button>
+          </form>
+        <% } %>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header">
+        <i class="bi bi-info-circle"></i> 使用说明
+      </div>
+      <div class="card-body">
+        <ul class="list-unstyled mb-0">
+          <li class="mb-2">
+            <i class="bi bi-1-circle text-primary"></i> 选择需要领用的宣传品
+          </li>
+          <li class="mb-2">
+            <i class="bi bi-2-circle text-primary"></i> 输入领用数量（不能超过剩余库存）
+          </li>
+          <li class="mb-2">
+            <i class="bi bi-3-circle text-primary"></i> 可选填写备注说明
+          </li>
+          <li>
+            <i class="bi bi-4-circle text-primary"></i> 点击提交完成领用
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <div class="card-header">
+        <i class="bi bi-link-45deg"></i> 相关链接
+      </div>
+      <div class="card-body">
+        <div class="d-grid gap-2">
+          <a href="/staff/inventory" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-box"></i> 查看库存
+          </a>
+          <a href="/staff/history" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-clock-history"></i> 领用历史
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<% if (materials.length > 0) { %>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const materialSelect = document.getElementById('materialSelect');
+  const stockInfo = document.getElementById('stockInfo');
+  const stockRemaining = document.getElementById('stockRemaining');
+  const stockUnit = document.getElementById('stockUnit');
+  const quantityInput = document.getElementById('quantityInput');
+  const quantityWarning = document.getElementById('quantityWarning');
+
+  let currentRemaining = 0;
+
+  materialSelect.addEventListener('change', function() {
+    const selected = this.options[this.selectedIndex];
+    if (this.value) {
+      currentRemaining = parseInt(selected.dataset.remaining) || 0;
+      stockRemaining.textContent = currentRemaining;
+      stockUnit.textContent = selected.dataset.unit || '';
+      stockInfo.style.display = 'block';
+
+      // 设置最大值
+      quantityInput.max = currentRemaining;
+      validateQuantity();
+    } else {
+      stockInfo.style.display = 'none';
+      currentRemaining = 0;
+      quantityInput.removeAttribute('max');
+      quantityWarning.style.display = 'none';
+    }
+  });
+
+  quantityInput.addEventListener('input', validateQuantity);
+
+  function validateQuantity() {
+    const qty = parseInt(quantityInput.value) || 0;
+    if (currentRemaining > 0 && qty > currentRemaining) {
+      quantityWarning.style.display = 'block';
+      quantityInput.classList.add('is-invalid');
+    } else {
+      quantityWarning.style.display = 'none';
+      quantityInput.classList.remove('is-invalid');
+    }
+  }
+});
+</script>
+<% } %>
+
+<%- include('../partials/footer') %>

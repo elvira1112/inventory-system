@@ -1,0 +1,119 @@
+<%- include('../partials/staff-header') %>
+
+<h2 class="mb-4"><i class="bi bi-speedometer2"></i> 工作台</h2>
+
+<% if (department) { %>
+  <div class="alert alert-info">
+    <i class="bi bi-building"></i> 当前部门/网点：<strong><%= department.name %></strong>
+  </div>
+<% } %>
+
+<div class="row g-4 mb-4">
+  <!-- 快捷操作 -->
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header">
+        <i class="bi bi-lightning"></i> 快捷操作
+      </div>
+      <div class="card-body">
+        <div class="d-grid gap-2">
+          <a href="/staff/usage" class="btn btn-primary">
+            <i class="bi bi-pencil-square"></i> 录入领用
+          </a>
+          <a href="/staff/inventory" class="btn btn-outline-primary">
+            <i class="bi bi-box"></i> 查看库存
+          </a>
+          <a href="/staff/history" class="btn btn-outline-primary">
+            <i class="bi bi-clock-history"></i> 领用历史
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 导出报表 -->
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header">
+        <i class="bi bi-download"></i> 导出报表
+      </div>
+      <div class="card-body">
+        <div class="d-grid gap-2">
+          <a href="/staff/export/inventory" class="btn btn-success">
+            <i class="bi bi-file-earmark-excel"></i> 导出库存报表
+          </a>
+          <a href="/staff/export/usage" class="btn btn-outline-success">
+            <i class="bi bi-file-earmark-excel"></i> 导出领用明细
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 库存概览 -->
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header">
+        <i class="bi bi-pie-chart"></i> 库存概览
+      </div>
+      <div class="card-body">
+        <% if (inventory.length === 0) { %>
+          <p class="text-muted text-center">暂无分配的宣传品</p>
+        <% } else { %>
+          <ul class="list-group list-group-flush">
+            <% inventory.slice(0, 5).forEach(function(item) { %>
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                <span><%= item.material_name %></span>
+                <span class="badge bg-primary"><%= item.remaining %> <%= item.unit %></span>
+              </li>
+            <% }); %>
+          </ul>
+          <% if (inventory.length > 5) { %>
+            <div class="text-center mt-2">
+              <a href="/staff/inventory" class="text-primary">查看全部...</a>
+            </div>
+          <% } %>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 最近领用记录 -->
+<div class="card">
+  <div class="card-header">
+    <i class="bi bi-clock-history"></i> 最近领用记录
+  </div>
+  <div class="card-body">
+    <% if (recentUsage.length === 0) { %>
+      <p class="text-muted text-center py-3">暂无领用记录</p>
+    <% } else { %>
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead>
+            <tr>
+              <th>活动</th>
+              <th>宣传品</th>
+              <th>数量</th>
+              <th>备注</th>
+              <th>时间</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% recentUsage.forEach(function(r) { %>
+              <tr>
+                <td><%= r.activity_name %></td>
+                <td><%= r.material_name %></td>
+                <td><%= r.quantity %> <%= r.unit %></td>
+                <td><%= r.remark || '-' %></td>
+                <td><%= r.created_at %></td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

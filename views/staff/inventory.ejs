@@ -1,0 +1,75 @@
+<%- include('../partials/staff-header') %>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2><i class="bi bi-box"></i> 库存查看</h2>
+  <a href="/staff/export/inventory" class="btn btn-success">
+    <i class="bi bi-file-earmark-excel"></i> 导出报表
+  </a>
+</div>
+
+<% var activityNames = Object.keys(groupedInventory); %>
+
+<% if (activityNames.length === 0) { %>
+  <div class="alert alert-info">
+    <i class="bi bi-info-circle"></i> 暂无分配的宣传品
+  </div>
+<% } else { %>
+  <div class="accordion" id="inventoryAccordion">
+    <% activityNames.forEach(function(activityName, index) { %>
+      <div class="accordion-item">
+        <h2 class="accordion-header">
+          <button class="accordion-button <%= index > 0 ? 'collapsed' : '' %>" type="button"
+                  data-bs-toggle="collapse" data-bs-target="#collapse<%= index %>">
+            <i class="bi bi-calendar-event me-2"></i>
+            <strong><%= activityName %></strong>
+            <span class="badge bg-primary ms-2"><%= groupedInventory[activityName].length %> 种宣传品</span>
+          </button>
+        </h2>
+        <div id="collapse<%= index %>" class="accordion-collapse collapse <%= index === 0 ? 'show' : '' %>"
+             data-bs-parent="#inventoryAccordion">
+          <div class="accordion-body">
+            <div class="table-responsive">
+              <table class="table table-hover mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>宣传品名称</th>
+                    <th>单位</th>
+                    <th>分配数量</th>
+                    <th>已使用</th>
+                    <th>剩余数量</th>
+                    <th>使用率</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% groupedInventory[activityName].forEach(function(item) { %>
+                    <% var rate = item.allocated > 0 ? Math.round(item.used / item.allocated * 100) : 0; %>
+                    <tr>
+                      <td><strong><%= item.material_name %></strong></td>
+                      <td><%= item.unit %></td>
+                      <td><%= item.allocated %></td>
+                      <td><span class="badge bg-warning text-dark"><%= item.used %></span></td>
+                      <td>
+                        <span class="badge <%= item.remaining > 0 ? 'bg-success' : 'bg-danger' %>">
+                          <%= item.remaining %>
+                        </span>
+                      </td>
+                      <td>
+                        <div class="progress" style="width: 80px; height: 18px;">
+                          <div class="progress-bar <%= rate > 80 ? 'bg-warning' : '' %>" style="width: <%= rate %>%">
+                            <%= rate %>%
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  <% }); %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    <% }); %>
+  </div>
+<% } %>
+
+<%- include('../partials/footer') %>

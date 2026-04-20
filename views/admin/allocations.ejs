@@ -1,0 +1,143 @@
+<%- include('../partials/admin-header') %>
+
+<h2 class="mb-4"><i class="bi bi-sliders"></i> 配额调整</h2>
+
+<!-- 选择活动 -->
+<div class="card mb-4">
+  <div class="card-body">
+    <form method="GET" action="/admin/allocations" class="row g-3 align-items-end">
+      <div class="col-md-8">
+        <label class="form-label">选择活动</label>
+        <select name="activity_id" class="form-select" onchange="this.form.submit()">
+          <option value="">-- 请选择活动 --</option>
+          <% activities.forEach(function(a) { %>
+            <option value="<%= a.id %>" <%= selectedActivity == a.id ? 'selected' : '' %>><%= a.name %></option>
+          <% }); %>
+        </select>
+      </div>
+    </form>
+  </div>
+</div>
+
+<% if (selectedActivity && materials.length > 0) { %>
+  <div class="card">
+    <div class="card-header">
+      <i class="bi bi-table"></i> 各部门配额分配
+    </div>
+    <div class="card-body">
+      <form method="POST" action="/admin/allocations/update">
+        <input type="hidden" name="activity_id" value="<%= selectedActivity %>">
+
+        <div class="table-responsive">
+          <table class="table table-bordered">
+            <thead class="table-light">
+              <tr>
+                <th>部门/网点</th>
+                <% materials.forEach(function(m) { %>
+                  <th class="text-center">
+                    <%= m.name %><br>
+                    <small class="text-muted">(<%= m.unit %>)</small><br>
+                    <span class="badge bg-info">总库存: <%= m.total_quantity %></span>
+                    <span class="badge <%= m.total_allocated > m.total_quantity ? 'bg-danger' : 'bg-success' %>">
+                      已分配: <%= m.total_allocated %>
+                    </span>
+                  </th>
+                <% }); %>
+              </tr>
+            </thead>
+            <tbody>
+              <% departments.forEach(function(dept) { %>
+                <tr>
+                  <td><strong><%= dept.name %></strong></td>
+                  <% materials.forEach(function(m) { %>
+                    <%
+                      var alloc = allocations.find(function(a) { return a.department_id === dept.id && a.material_id === m.id; });
+                      var allocated = alloc ? alloc.allocated : 0;
+                      var used = alloc ? alloc.used : 0;
+                    %>
+                    <td>
+                      <div class="input-group input-group-sm">
+                        <input type="number" class="form-control allocation-input"
+                               name="allocations[dept_<%= dept.id %>_mat_<%= m.id %>]"
+                               data-material-id="<%= m.id %>"
+                               data-total="<%= m.total_quantity %>"
+                               value="<%= allocated %>" min="0">
+                      </div>
+                      <% if (used > 0) { %>
+                        <small class="text-muted">已用: <%= used %></small>
+                      <% } %>
+                    </td>
+                  <% }); %>
+                </tr>
+              <% }); %>
+            </tbody>
+            <tfoot class="table-warning">
+              <tr>
+                <td><strong>剩余未分配</strong></td>
+                <% materials.forEach(function(m) { %>
+                  <td class="text-center">
+                    <strong id="remaining_<%= m.id %>" class="<%= (m.total_quantity - m.total_allocated) < 0 ? 'text-danger' : 'text-success' %>">
+                      <%= m.total_quantity - m.total_allocated %>
+                    </strong>
+                  </td>
+                <% }); %>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <div class="text-end mt-3">
+          <button type="submit" class="btn btn-primary btn-lg">
+            <i class="bi bi-check-lg"></i> 保存配额
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+<% } else if (selectedActivity) { %>
+  <div class="alert alert-info">
+    <i class="bi bi-info-circle"></i> 该活动暂无宣传品
+  </div>
+<% } %>
+
+<% if (selectedActivity && materials.length > 0) { %>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const inputs = document.querySelectorAll('.allocation-input');
+
+  function updateRemaining() {
+    // 按宣传品ID分组计算
+    const totals = {};
+    const allocated = {};
+
+    inputs.forEach(function(input) {
+      const matId = input.dataset.materialId;
+      const total = parseInt(input.dataset.total) || 0;
+      const value = parseInt(input.value) || 0;
+
+      if (!totals[matId]) {
+        totals[matId] = total;
+        allocated[matId] = 0;
+      }
+      allocated[matId] += value;
+    });
+
+    // 更新显示
+    for (const matId in totals) {
+      const remaining = totals[matId] - allocated[matId];
+      const el = document.getElementById('remaining_' + matId);
+      if (el) {
+        el.textContent = remaining;
+        el.className = remaining < 0 ? 'text-danger' : 'text-success';
+      }
+    }
+  }
+
+  inputs.forEach(function(input) {
+    input.addEventListener('input', updateRemaining);
+  });
+});
+</script>
+<% } %>
+
+<%- include('../partials/footer') %>
