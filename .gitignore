@@ -3,3 +3,4 @@ uploads/
 database/inventory.db
 *.log
 .env
+.vscode
