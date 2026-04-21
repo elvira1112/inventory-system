@@ -12,37 +12,64 @@
   <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
     <div class="container">
       <a class="navbar-brand" href="/admin">
-        <i class="bi bi-box-seam"></i> 库存管理系统
+        <i class="bi bi-box-seam"></i>
+        <span class="d-none d-sm-inline">库存管理系统</span>
+        <span class="d-inline d-sm-none">库存系统</span>
       </a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+              aria-controls="navbarNav" aria-expanded="false" aria-label="切换导航">
         <span class="navbar-toggler-icon"></span>
       </button>
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav me-auto">
           <li class="nav-item">
-            <a class="nav-link" href="/admin"><i class="bi bi-speedometer2"></i> 仪表盘</a>
+            <a class="nav-link <%= typeof currentPage !== 'undefined' && currentPage === 'dashboard' ? 'active' : '' %>" href="/admin">
+              <i class="bi bi-speedometer2"></i> 仪表盘
+            </a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="/admin/users"><i class="bi bi-people"></i> 人员管理</a>
+            <a class="nav-link <%= typeof currentPage !== 'undefined' && currentPage === 'users' ? 'active' : '' %>" href="/admin/users">
+              <i class="bi bi-people"></i>
+              <span class="d-none d-md-inline">人员管理</span>
+              <span class="d-inline d-md-none">人员</span>
+            </a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="/admin/activities"><i class="bi bi-calendar-event"></i> 活动管理</a>
+            <a class="nav-link <%= typeof currentPage !== 'undefined' && currentPage === 'activities' ? 'active' : '' %>" href="/admin/activities">
+              <i class="bi bi-calendar-event"></i>
+              <span class="d-none d-md-inline">活动管理</span>
+              <span class="d-inline d-md-none">活动</span>
+            </a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="/admin/inventory"><i class="bi bi-box"></i> 库存查看</a>
+            <a class="nav-link <%= typeof currentPage !== 'undefined' && currentPage === 'inventory' ? 'active' : '' %>" href="/admin/inventory">
+              <i class="bi bi-box"></i>
+              <span class="d-none d-md-inline">库存查看</span>
+              <span class="d-inline d-md-none">库存</span>
+            </a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="/admin/allocations"><i class="bi bi-sliders"></i> 配额调整</a>
+            <a class="nav-link <%= typeof currentPage !== 'undefined' && currentPage === 'allocations' ? 'active' : '' %>" href="/admin/allocations">
+              <i class="bi bi-sliders"></i>
+              <span class="d-none d-md-inline">配额调整</span>
+              <span class="d-inline d-md-none">配额</span>
+            </a>
           </li>
         </ul>
         <ul class="navbar-nav">
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
-              <i class="bi bi-person-circle"></i> <%= user.name %>
-              <span class="badge bg-light text-primary">管理员</span>
+            <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown"
+               aria-expanded="false" role="button">
+              <i class="bi bi-person-circle"></i>
+              <span class="d-none d-sm-inline"><%= user.name %></span>
+              <span class="badge bg-light text-primary ms-1">管理员</span>
             </a>
             <ul class="dropdown-menu dropdown-menu-end">
-              <li><a class="dropdown-item" href="/logout"><i class="bi bi-box-arrow-right"></i> 退出登录</a></li>
+              <li>
+                <a class="dropdown-item" href="/logout">
+                  <i class="bi bi-box-arrow-right"></i> 退出登录
+                </a>
+              </li>
             </ul>
           </li>
         </ul>

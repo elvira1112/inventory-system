@@ -6,7 +6,7 @@
 <div class="card mb-4">
   <div class="card-body">
     <form method="GET" action="/admin/allocations" class="row g-3 align-items-end">
-      <div class="col-md-8">
+      <div class="col-12 col-md-8">
         <label class="form-label">选择活动</label>
         <select name="activity_id" class="form-select" onchange="this.form.submit()">
           <option value="">-- 请选择活动 --</option>
@@ -28,66 +28,115 @@
       <form method="POST" action="/admin/allocations/update">
         <input type="hidden" name="activity_id" value="<%= selectedActivity %>">
 
-        <div class="table-responsive">
-          <table class="table table-bordered">
-            <thead class="table-light">
-              <tr>
-                <th>部门/网点</th>
-                <% materials.forEach(function(m) { %>
-                  <th class="text-center">
-                    <%= m.name %><br>
-                    <small class="text-muted">(<%= m.unit %>)</small><br>
-                    <span class="badge bg-info">总库存: <%= m.total_quantity %></span>
-                    <span class="badge <%= m.total_allocated > m.total_quantity ? 'bg-danger' : 'bg-success' %>">
-                      已分配: <%= m.total_allocated %>
-                    </span>
-                  </th>
-                <% }); %>
-              </tr>
-            </thead>
-            <tbody>
-              <% departments.forEach(function(dept) { %>
+        <!-- 桌面版表格 -->
+        <div class="desktop-only">
+          <div class="table-responsive">
+            <table class="table table-bordered">
+              <thead class="table-light">
                 <tr>
-                  <td><strong><%= dept.name %></strong></td>
+                  <th>部门/网点</th>
                   <% materials.forEach(function(m) { %>
-                    <%
-                      var alloc = allocations.find(function(a) { return a.department_id === dept.id && a.material_id === m.id; });
-                      var allocated = alloc ? alloc.allocated : 0;
-                      var used = alloc ? alloc.used : 0;
-                    %>
-                    <td>
-                      <div class="input-group input-group-sm">
-                        <input type="number" class="form-control allocation-input"
-                               name="allocations[dept_<%= dept.id %>_mat_<%= m.id %>]"
-                               data-material-id="<%= m.id %>"
-                               data-total="<%= m.total_quantity %>"
-                               value="<%= allocated %>" min="0">
-                      </div>
-                      <% if (used > 0) { %>
-                        <small class="text-muted">已用: <%= used %></small>
-                      <% } %>
+                    <th class="text-center">
+                      <%= m.name %><br>
+                      <small class="text-muted">(<%= m.unit %>)</small><br>
+                      <span class="badge bg-info">总库存: <%= m.total_quantity %></span>
+                      <span class="badge <%= m.total_allocated > m.total_quantity ? 'bg-danger' : 'bg-success' %>">
+                        已分配: <%= m.total_allocated %>
+                      </span>
+                    </th>
+                  <% }); %>
+                </tr>
+              </thead>
+              <tbody>
+                <% departments.forEach(function(dept) { %>
+                  <tr>
+                    <td><strong><%= dept.name %></strong></td>
+                    <% materials.forEach(function(m) { %>
+                      <%
+                        var alloc = allocations.find(function(a) { return a.department_id === dept.id && a.material_id === m.id; });
+                        var allocated = alloc ? alloc.allocated : 0;
+                        var used = alloc ? alloc.used : 0;
+                      %>
+                      <td>
+                        <div class="input-group input-group-sm">
+                          <input type="number" class="form-control allocation-input"
+                                 name="allocations[dept_<%= dept.id %>_mat_<%= m.id %>]"
+                                 data-material-id="<%= m.id %>"
+                                 data-total="<%= m.total_quantity %>"
+                                 value="<%= allocated %>" min="0">
+                        </div>
+                        <% if (used > 0) { %>
+                          <small class="text-muted">已用: <%= used %></small>
+                        <% } %>
+                      </td>
+                    <% }); %>
+                  </tr>
+                <% }); %>
+              </tbody>
+              <tfoot class="table-warning">
+                <tr>
+                  <td><strong>剩余未分配</strong></td>
+                  <% materials.forEach(function(m) { %>
+                    <td class="text-center">
+                      <strong id="remaining_<%= m.id %>" class="<%= (m.total_quantity - m.total_allocated) < 0 ? 'text-danger' : 'text-success' %>">
+                        <%= m.total_quantity - m.total_allocated %>
+                      </strong>
                     </td>
                   <% }); %>
                 </tr>
-              <% }); %>
-            </tbody>
-            <tfoot class="table-warning">
-              <tr>
-                <td><strong>剩余未分配</strong></td>
-                <% materials.forEach(function(m) { %>
-                  <td class="text-center">
-                    <strong id="remaining_<%= m.id %>" class="<%= (m.total_quantity - m.total_allocated) < 0 ? 'text-danger' : 'text-success' %>">
-                      <%= m.total_quantity - m.total_allocated %>
-                    </strong>
-                  </td>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        <!-- 移动版 - 分部门显示 -->
+        <div class="mobile-only">
+          <% materials.forEach(function(m) { %>
+            <div class="card mb-3">
+              <div class="card-header">
+                <strong><%= m.name %></strong> (<%= m.unit %>)
+                <br>
+                <small>
+                  <span class="badge bg-info">总库存: <%= m.total_quantity %></span>
+                  <span class="badge <%= m.total_allocated > m.total_quantity ? 'bg-danger' : 'bg-success' %>">
+                    已分配: <%= m.total_allocated %>
+                  </span>
+                  <span class="badge bg-warning text-dark" id="remaining_mobile_<%= m.id %>">
+                    剩余: <%= m.total_quantity - m.total_allocated %>
+                  </span>
+                </small>
+              </div>
+              <div class="card-body">
+                <% departments.forEach(function(dept) { %>
+                  <%
+                    var alloc = allocations.find(function(a) { return a.department_id === dept.id && a.material_id === m.id; });
+                    var allocated = alloc ? alloc.allocated : 0;
+                    var used = alloc ? alloc.used : 0;
+                  %>
+                  <div class="row mb-2 align-items-center">
+                    <div class="col-5">
+                      <strong><%= dept.name %></strong>
+                      <% if (used > 0) { %>
+                        <br><small class="text-muted">已用: <%= used %></small>
+                      <% } %>
+                    </div>
+                    <div class="col-7">
+                      <input type="number" class="form-control allocation-input"
+                             name="allocations[dept_<%= dept.id %>_mat_<%= m.id %>]"
+                             data-material-id="<%= m.id %>"
+                             data-total="<%= m.total_quantity %>"
+                             value="<%= allocated %>" min="0"
+                             placeholder="分配数量">
+                    </div>
+                  </div>
                 <% }); %>
-              </tr>
-            </tfoot>
-          </table>
+              </div>
+            </div>
+          <% }); %>
         </div>
 
         <div class="text-end mt-3">
-          <button type="submit" class="btn btn-primary btn-lg">
+          <button type="submit" class="btn btn-primary btn-lg w-100 w-sm-auto">
             <i class="bi bi-check-lg"></i> 保存配额
           </button>
         </div>
@@ -125,10 +174,19 @@ document.addEventListener('DOMContentLoaded', function() {
     // 更新显示
     for (const matId in totals) {
       const remaining = totals[matId] - allocated[matId];
+
+      // 桌面版更新
       const el = document.getElementById('remaining_' + matId);
       if (el) {
         el.textContent = remaining;
         el.className = remaining < 0 ? 'text-danger' : 'text-success';
+      }
+
+      // 移动版更新
+      const elMobile = document.getElementById('remaining_mobile_' + matId);
+      if (elMobile) {
+        elMobile.textContent = '剩余: ' + remaining;
+        elMobile.className = 'badge ' + (remaining < 0 ? 'bg-danger' : 'bg-warning text-dark');
       }
     }
   }

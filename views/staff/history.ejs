@@ -2,9 +2,11 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
   <h2><i class="bi bi-clock-history"></i> 领用历史</h2>
-  <a href="/staff/export/usage" class="btn btn-success">
-    <i class="bi bi-file-earmark-excel"></i> 导出明细
-  </a>
+  <div class="action-buttons">
+    <a href="/staff/export/usage" class="btn btn-success">
+      <i class="bi bi-file-earmark-excel"></i> <span class="d-none d-sm-inline">导出明细</span><span class="d-inline d-sm-none">导出</span>
+    </a>
+  </div>
 </div>
 
 <div class="card">
@@ -15,7 +17,8 @@
         <p>暂无领用记录</p>
       </div>
     <% } else { %>
-      <div class="table-responsive">
+      <!-- 桌面版表格 -->
+      <div class="table-responsive desktop-only">
         <table class="table table-hover">
           <thead class="table-light">
             <tr>
@@ -42,6 +45,42 @@
             <% }); %>
           </tbody>
         </table>
+      </div>
+
+      <!-- 移动版卡片 -->
+      <div class="mobile-only">
+        <% records.forEach(function(r) { %>
+          <div class="table-mobile-card">
+            <div class="mobile-row">
+              <span class="mobile-label">活动:</span>
+              <span class="mobile-value"><strong><%= r.activity_name %></strong></span>
+            </div>
+            <div class="mobile-row">
+              <span class="mobile-label">宣传品:</span>
+              <span class="mobile-value"><%= r.material_name %></span>
+            </div>
+            <div class="mobile-row">
+              <span class="mobile-label">数量:</span>
+              <span class="mobile-value"><span class="badge bg-primary"><%= r.quantity %> <%= r.unit %></span></span>
+            </div>
+            <div class="mobile-row">
+              <span class="mobile-label">领用客户:</span>
+              <span class="mobile-value"><%= r.customer_name || '-' %></span>
+            </div>
+            <div class="mobile-row">
+              <span class="mobile-label">录入员工:</span>
+              <span class="mobile-value"><%= r.created_by_name %></span>
+            </div>
+            <div class="mobile-row">
+              <span class="mobile-label">领用时间:</span>
+              <span class="mobile-value"><%= r.created_at %></span>
+            </div>
+            <div class="mobile-row">
+              <span class="mobile-label">备注:</span>
+              <span class="mobile-value"><%= r.remark || '-' %></span>
+            </div>
+          </div>
+        <% }); %>
       </div>
     <% } %>
   </div>

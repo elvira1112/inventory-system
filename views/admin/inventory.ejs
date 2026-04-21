@@ -2,12 +2,12 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
   <h2><i class="bi bi-box"></i> 库存概览</h2>
-  <div>
+  <div class="action-buttons">
     <a href="/admin/export/inventory" class="btn btn-success">
-      <i class="bi bi-file-earmark-excel"></i> 导出库存报表
+      <i class="bi bi-file-earmark-excel"></i> <span class="d-none d-sm-inline">导出库存报表</span><span class="d-inline d-sm-none">库存</span>
     </a>
     <a href="/admin/export/usage" class="btn btn-outline-success">
-      <i class="bi bi-file-earmark-excel"></i> 导出领用明细
+      <i class="bi bi-file-earmark-excel"></i> <span class="d-none d-sm-inline">导出领用明细</span><span class="d-inline d-sm-none">明细</span>
     </a>
   </div>
 </div>
@@ -20,7 +20,8 @@
         <p>暂无库存数据</p>
       </div>
     <% } else { %>
-      <div class="table-responsive">
+      <!-- 桌面版表格 -->
+      <div class="table-responsive desktop-only">
         <table class="table table-hover">
           <thead class="table-light">
             <tr>
@@ -56,6 +57,53 @@
             <% }); %>
           </tbody>
         </table>
+      </div>
+
+      <!-- 移动版卡片 -->
+      <div class="mobile-only">
+        <% inventory.forEach(function(item) { %>
+          <% var rate = item.total_quantity > 0 ? Math.round(item.allocated / item.total_quantity * 100) : 0; %>
+          <div class="table-mobile-card">
+            <div class="mobile-row">
+              <span class="mobile-label">活动:</span>
+              <span class="mobile-value"><strong><%= item.activity_name %></strong></span>
+            </div>
+            <div class="mobile-row">
+              <span class="mobile-label">宣传品:</span>
+              <span class="mobile-value"><%= item.material_name %></span>
+            </div>
+            <div class="mobile-row">
+              <span class="mobile-label">单位:</span>
+              <span class="mobile-value"><%= item.unit %></span>
+            </div>
+            <div class="mobile-row">
+              <span class="mobile-label">总数量:</span>
+              <span class="mobile-value"><%= item.total_quantity %></span>
+            </div>
+            <div class="mobile-row">
+              <span class="mobile-label">已分配:</span>
+              <span class="mobile-value"><span class="badge bg-info"><%= item.allocated %></span></span>
+            </div>
+            <div class="mobile-row">
+              <span class="mobile-label">已使用:</span>
+              <span class="mobile-value"><span class="badge bg-warning text-dark"><%= item.used %></span></span>
+            </div>
+            <div class="mobile-row">
+              <span class="mobile-label">未分配:</span>
+              <span class="mobile-value"><span class="badge bg-success"><%= item.unallocated %></span></span>
+            </div>
+            <div class="mobile-row">
+              <span class="mobile-label">分配率:</span>
+              <span class="mobile-value">
+                <div class="progress" style="width: 100%;">
+                  <div class="progress-bar" role="progressbar" style="width: <%= rate %>%">
+                    <%= rate %>%
+                  </div>
+                </div>
+              </span>
+            </div>
+          </div>
+        <% }); %>
       </div>
     <% } %>
   </div>

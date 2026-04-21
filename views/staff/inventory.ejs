@@ -2,9 +2,11 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
   <h2><i class="bi bi-box"></i> 库存查看</h2>
-  <a href="/staff/export/inventory" class="btn btn-success">
-    <i class="bi bi-file-earmark-excel"></i> 导出报表
-  </a>
+  <div class="action-buttons">
+    <a href="/staff/export/inventory" class="btn btn-success">
+      <i class="bi bi-file-earmark-excel"></i> <span class="d-none d-sm-inline">导出报表</span><span class="d-inline d-sm-none">导出</span>
+    </a>
+  </div>
 </div>
 
 <% var activityNames = Object.keys(groupedInventory); %>
@@ -22,13 +24,14 @@
                   data-bs-toggle="collapse" data-bs-target="#collapse<%= index %>">
             <i class="bi bi-calendar-event me-2"></i>
             <strong><%= activityName %></strong>
-            <span class="badge bg-primary ms-2"><%= groupedInventory[activityName].length %> 种宣传品</span>
+            <span class="badge bg-primary ms-2"><%= groupedInventory[activityName].length %> 种</span>
           </button>
         </h2>
         <div id="collapse<%= index %>" class="accordion-collapse collapse <%= index === 0 ? 'show' : '' %>"
              data-bs-parent="#inventoryAccordion">
           <div class="accordion-body">
-            <div class="table-responsive">
+            <!-- 桌面版表格 -->
+            <div class="table-responsive desktop-only">
               <table class="table table-hover mb-0">
                 <thead class="table-light">
                   <tr>
@@ -64,6 +67,49 @@
                   <% }); %>
                 </tbody>
               </table>
+            </div>
+
+            <!-- 移动版卡片 -->
+            <div class="mobile-only">
+              <% groupedInventory[activityName].forEach(function(item) { %>
+                <% var rate = item.allocated > 0 ? Math.round(item.used / item.allocated * 100) : 0; %>
+                <div class="table-mobile-card">
+                  <div class="mobile-row">
+                    <span class="mobile-label">宣传品:</span>
+                    <span class="mobile-value"><strong><%= item.material_name %></strong></span>
+                  </div>
+                  <div class="mobile-row">
+                    <span class="mobile-label">单位:</span>
+                    <span class="mobile-value"><%= item.unit %></span>
+                  </div>
+                  <div class="mobile-row">
+                    <span class="mobile-label">分配数量:</span>
+                    <span class="mobile-value"><%= item.allocated %></span>
+                  </div>
+                  <div class="mobile-row">
+                    <span class="mobile-label">已使用:</span>
+                    <span class="mobile-value"><span class="badge bg-warning text-dark"><%= item.used %></span></span>
+                  </div>
+                  <div class="mobile-row">
+                    <span class="mobile-label">剩余数量:</span>
+                    <span class="mobile-value">
+                      <span class="badge <%= item.remaining > 0 ? 'bg-success' : 'bg-danger' %>">
+                        <%= item.remaining %>
+                      </span>
+                    </span>
+                  </div>
+                  <div class="mobile-row">
+                    <span class="mobile-label">使用率:</span>
+                    <span class="mobile-value">
+                      <div class="progress" style="width: 100%;">
+                        <div class="progress-bar <%= rate > 80 ? 'bg-warning' : '' %>" style="width: <%= rate %>%">
+                          <%= rate %>%
+                        </div>
+                      </div>
+                    </span>
+                  </div>
+                </div>
+              <% }); %>
             </div>
           </div>
         </div>

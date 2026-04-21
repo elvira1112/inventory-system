@@ -3,7 +3,7 @@
 <h2 class="mb-4"><i class="bi bi-pencil-square"></i> 领用录入</h2>
 
 <div class="row">
-  <div class="col-md-8">
+  <div class="col-12 col-lg-8">
     <div class="card">
       <div class="card-header">
         <i class="bi bi-plus-circle"></i> 新增领用记录
@@ -44,12 +44,12 @@
               <input type="text" name="customer_name" class="form-control" required placeholder="请输入领用客户的姓名">
             </div>
 
-            <div class="mb-3">
+            <div class="mb-4">
               <label class="form-label">备注</label>
-              <textarea name="remark" class="form-control" rows="2" placeholder="可选，填写领用说明"></textarea>
+              <textarea name="remark" class="form-control" rows="3" placeholder="可选，填写领用说明"></textarea>
             </div>
 
-            <button type="submit" class="btn btn-primary">
+            <button type="submit" class="btn btn-primary w-100 w-sm-auto">
               <i class="bi bi-check-lg"></i> 提交领用
             </button>
           </form>
@@ -58,7 +58,7 @@
     </div>
   </div>
 
-  <div class="col-md-4">
+  <div class="col-12 col-lg-4 mt-4 mt-lg-0">
     <div class="card">
       <div class="card-header">
         <i class="bi bi-info-circle"></i> 使用说明
@@ -72,10 +72,13 @@
             <i class="bi bi-2-circle text-primary"></i> 输入领用数量（不能超过剩余库存）
           </li>
           <li class="mb-2">
-            <i class="bi bi-3-circle text-primary"></i> 可选填写备注说明
+            <i class="bi bi-3-circle text-primary"></i> 填写领用客户名称
+          </li>
+          <li class="mb-2">
+            <i class="bi bi-4-circle text-primary"></i> 可选填写备注说明
           </li>
           <li>
-            <i class="bi bi-4-circle text-primary"></i> 点击提交完成领用
+            <i class="bi bi-5-circle text-primary"></i> 点击提交完成领用
           </li>
         </ul>
       </div>
