@@ -1,0 +1,62 @@
+<%- include('../partials/admin-header') %>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2><i class="bi bi-building"></i> 部门/网点设置</h2>
+  <a href="/admin/template/departments" class="btn btn-outline-secondary"><i class="bi bi-download"></i> 下载模板</a>
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-12 col-lg-6">
+    <div class="card h-100">
+      <div class="card-header"><i class="bi bi-upload"></i> 批量导入</div>
+      <div class="card-body">
+        <form method="POST" action="/admin/departments/import" enctype="multipart/form-data">
+          <input type="file" class="form-control mb-3" name="file" accept=".xlsx,.xls" required>
+          <button class="btn btn-primary w-100"><i class="bi bi-upload"></i> 导入部门/网点</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-6">
+    <div class="card h-100">
+      <div class="card-header"><i class="bi bi-plus-circle"></i> 单个录入</div>
+      <div class="card-body">
+        <form method="POST" action="/admin/departments/add" class="d-flex gap-2">
+          <input type="text" class="form-control" name="name" placeholder="部门/网点名称" required>
+          <button class="btn btn-primary text-nowrap">添加</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><i class="bi bi-list"></i> 部门/网点列表</div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead class="table-light"><tr><th>名称</th><th>关联人员数</th><th>操作</th></tr></thead>
+        <tbody>
+          <% departments.forEach(function(dept) { %>
+            <tr>
+              <td>
+                <form method="POST" action="/admin/departments/update/<%= dept.id %>" class="d-flex gap-2">
+                  <input class="form-control" name="name" value="<%= dept.name %>" required>
+                  <button class="btn btn-sm btn-outline-primary text-nowrap">修改</button>
+                </form>
+              </td>
+              <td><%= dept.user_count %></td>
+              <td>
+                <form method="POST" action="/admin/departments/delete/<%= dept.id %>" onsubmit="return confirm('确定删除该部门/网点？')">
+                  <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                </form>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

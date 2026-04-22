@@ -6,15 +6,14 @@ const bcrypt = require('bcryptjs');
 const DB_PATH = path.join(__dirname, 'inventory.db');
 
 let db = null;
+let lastInsertId = null;
 
 async function initDatabase() {
   const SQL = await initSqlJs();
 
-  // 如果数据库文件存在，加载它；否则创建新的
   if (fs.existsSync(DB_PATH)) {
     const buffer = fs.readFileSync(DB_PATH);
     db = new SQL.Database(buffer);
-    // 运行数据库迁移
     migrateDatabase();
   } else {
     db = new SQL.Database();
@@ -26,21 +25,7 @@ async function initDatabase() {
   return db;
 }
 
-// 数据库迁移：添加新字段
-function migrateDatabase() {
-  // 检查 usage_records 表是否有 customer_name 字段
-  const columns = query("PRAGMA table_info(usage_records)");
-  const hasCustomerName = columns.some(col => col.name === 'customer_name');
-
-  if (!hasCustomerName) {
-    db.run("ALTER TABLE usage_records ADD COLUMN customer_name TEXT");
-    saveDatabase();
-    console.log('数据库迁移: 已添加 customer_name 字段');
-  }
-}
-
 function createTables() {
-  // 用户表
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -49,11 +34,13 @@ function createTables() {
       name TEXT NOT NULL,
       role INTEGER NOT NULL DEFAULT 2,
       department_id INTEGER,
+      must_change_password INTEGER DEFAULT 0,
+      initial_password TEXT,
+      last_password_hash TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
-  // 部门/网点表
   db.run(`
     CREATE TABLE IF NOT EXISTS departments (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -62,16 +49,16 @@ function createTables() {
     )
   `);
 
-  // 活动表
   db.run(`
     CREATE TABLE IF NOT EXISTS activities (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT UNIQUE NOT NULL,
+      department_id INTEGER,
+      registration_date TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
-  // 宣传品表
   db.run(`
     CREATE TABLE IF NOT EXISTS materials (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -84,7 +71,6 @@ function createTables() {
     )
   `);
 
-  // 部门宣传品配额表
   db.run(`
     CREATE TABLE IF NOT EXISTS department_allocations (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -92,13 +78,13 @@ function createTables() {
       material_id INTEGER NOT NULL,
       allocated_quantity INTEGER DEFAULT 0,
       used_quantity INTEGER DEFAULT 0,
+      recovered_quantity INTEGER DEFAULT 0,
       FOREIGN KEY (department_id) REFERENCES departments(id),
       FOREIGN KEY (material_id) REFERENCES materials(id),
       UNIQUE(department_id, material_id)
     )
   `);
 
-  // 领用记录表
   db.run(`
     CREATE TABLE IF NOT EXISTS usage_records (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -107,6 +93,7 @@ function createTables() {
       quantity INTEGER NOT NULL,
       customer_name TEXT,
       remark TEXT,
+      record_type TEXT DEFAULT 'usage',
       created_by INTEGER NOT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (department_id) REFERENCES departments(id),
@@ -116,11 +103,43 @@ function createTables() {
   `);
 }
 
+function migrateDatabase() {
+  let changed = false;
+
+  changed = addColumnIfMissing('users', 'must_change_password', 'INTEGER DEFAULT 0') || changed;
+  changed = addColumnIfMissing('users', 'initial_password', 'TEXT') || changed;
+  changed = addColumnIfMissing('users', 'last_password_hash', 'TEXT') || changed;
+  changed = addColumnIfMissing('activities', 'department_id', 'INTEGER') || changed;
+  changed = addColumnIfMissing('activities', 'registration_date', 'TEXT') || changed;
+  changed = addColumnIfMissing('department_allocations', 'recovered_quantity', 'INTEGER DEFAULT 0') || changed;
+  changed = addColumnIfMissing('usage_records', 'customer_name', 'TEXT') || changed;
+  changed = addColumnIfMissing('usage_records', 'record_type', "TEXT DEFAULT 'usage'") || changed;
+
+  const admin = get("SELECT id, role FROM users WHERE username = 'admin'");
+  if (admin && admin.role !== 0) {
+    db.run("UPDATE users SET role = 0, must_change_password = 0 WHERE username = 'admin'");
+    changed = true;
+  }
+
+  if (changed) {
+    saveDatabase();
+  }
+}
+
+function addColumnIfMissing(tableName, columnName, definition) {
+  const columns = query(`PRAGMA table_info(${tableName})`).map(col => col.name);
+  if (!columns.includes(columnName)) {
+    db.run(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
+    return true;
+  }
+  return false;
+}
+
 function insertDefaultAdmin() {
   const hashedPassword = bcrypt.hashSync('admin123', 10);
   db.run(`
-    INSERT INTO users (username, password, name, role, department_id)
-    VALUES ('admin', ?, '系统管理员', 1, NULL)
+    INSERT INTO users (username, password, name, role, department_id, must_change_password, initial_password)
+    VALUES ('admin', ?, '系统管理员', 0, NULL, 0, NULL)
   `, [hashedPassword]);
 }
 
@@ -134,7 +153,6 @@ function getDatabase() {
   return db;
 }
 
-// 通用查询方法
 function query(sql, params = []) {
   const stmt = db.prepare(sql);
   stmt.bind(params);
@@ -148,6 +166,7 @@ function query(sql, params = []) {
 
 function run(sql, params = []) {
   db.run(sql, params);
+  lastInsertId = query('SELECT last_insert_rowid() as id')[0].id;
   saveDatabase();
   return db.getRowsModified();
 }
@@ -158,6 +177,9 @@ function get(sql, params = []) {
 }
 
 function getLastInsertId() {
+  if (lastInsertId !== null) {
+    return lastInsertId;
+  }
   const result = query('SELECT last_insert_rowid() as id');
   return result[0].id;
 }

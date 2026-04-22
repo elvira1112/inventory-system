@@ -302,6 +302,16 @@ main {
   display: block;
 }
 
+.inventory-wide-table {
+  min-width: 1400px;
+}
+
+.inventory-wide-table th,
+.inventory-wide-table td {
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
 @media (max-width: 767.98px) {
   .mobile-only {
     display: block;

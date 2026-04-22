@@ -1,112 +1,78 @@
 <%- include('../partials/admin-header') %>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-  <h2><i class="bi bi-box"></i> 库存概览</h2>
+  <h2><i class="bi bi-box"></i> <%= user.role === 0 ? '报表查看及导出' : '库存管理' %></h2>
   <div class="action-buttons">
-    <a href="/admin/export/inventory" class="btn btn-success">
-      <i class="bi bi-file-earmark-excel"></i> <span class="d-none d-sm-inline">导出库存报表</span><span class="d-inline d-sm-none">库存</span>
-    </a>
-    <a href="/admin/export/usage" class="btn btn-outline-success">
-      <i class="bi bi-file-earmark-excel"></i> <span class="d-none d-sm-inline">导出领用明细</span><span class="d-inline d-sm-none">明细</span>
-    </a>
-  </div>
-</div>
-
-<div class="card">
-  <div class="card-body">
-    <% if (inventory.length === 0) { %>
-      <div class="text-center text-muted py-4">
-        <i class="bi bi-inbox fs-1"></i>
-        <p>暂无库存数据</p>
-      </div>
-    <% } else { %>
-      <!-- 桌面版表格 -->
-      <div class="table-responsive desktop-only">
-        <table class="table table-hover">
-          <thead class="table-light">
-            <tr>
-              <th>活动名称</th>
-              <th>宣传品名称</th>
-              <th>单位</th>
-              <th>总数量</th>
-              <th>已分配</th>
-              <th>已使用</th>
-              <th>未分配</th>
-              <th>分配率</th>
-            </tr>
-          </thead>
-          <tbody>
-            <% inventory.forEach(function(item) { %>
-              <% var rate = item.total_quantity > 0 ? Math.round(item.allocated / item.total_quantity * 100) : 0; %>
-              <tr>
-                <td><%= item.activity_name %></td>
-                <td><strong><%= item.material_name %></strong></td>
-                <td><%= item.unit %></td>
-                <td><%= item.total_quantity %></td>
-                <td><span class="badge bg-info"><%= item.allocated %></span></td>
-                <td><span class="badge bg-warning text-dark"><%= item.used %></span></td>
-                <td><span class="badge bg-success"><%= item.unallocated %></span></td>
-                <td>
-                  <div class="progress" style="width: 100px; height: 20px;">
-                    <div class="progress-bar" role="progressbar" style="width: <%= rate %>%">
-                      <%= rate %>%
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            <% }); %>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- 移动版卡片 -->
-      <div class="mobile-only">
-        <% inventory.forEach(function(item) { %>
-          <% var rate = item.total_quantity > 0 ? Math.round(item.allocated / item.total_quantity * 100) : 0; %>
-          <div class="table-mobile-card">
-            <div class="mobile-row">
-              <span class="mobile-label">活动:</span>
-              <span class="mobile-value"><strong><%= item.activity_name %></strong></span>
-            </div>
-            <div class="mobile-row">
-              <span class="mobile-label">宣传品:</span>
-              <span class="mobile-value"><%= item.material_name %></span>
-            </div>
-            <div class="mobile-row">
-              <span class="mobile-label">单位:</span>
-              <span class="mobile-value"><%= item.unit %></span>
-            </div>
-            <div class="mobile-row">
-              <span class="mobile-label">总数量:</span>
-              <span class="mobile-value"><%= item.total_quantity %></span>
-            </div>
-            <div class="mobile-row">
-              <span class="mobile-label">已分配:</span>
-              <span class="mobile-value"><span class="badge bg-info"><%= item.allocated %></span></span>
-            </div>
-            <div class="mobile-row">
-              <span class="mobile-label">已使用:</span>
-              <span class="mobile-value"><span class="badge bg-warning text-dark"><%= item.used %></span></span>
-            </div>
-            <div class="mobile-row">
-              <span class="mobile-label">未分配:</span>
-              <span class="mobile-value"><span class="badge bg-success"><%= item.unallocated %></span></span>
-            </div>
-            <div class="mobile-row">
-              <span class="mobile-label">分配率:</span>
-              <span class="mobile-value">
-                <div class="progress" style="width: 100%;">
-                  <div class="progress-bar" role="progressbar" style="width: <%= rate %>%">
-                    <%= rate %>%
-                  </div>
-                </div>
-              </span>
-            </div>
-          </div>
-        <% }); %>
-      </div>
+    <% if (user.role === 1 && selectedActivity) { %>
+      <a href="/admin/allocations?activity_id=<%= selectedActivity %>" class="btn btn-primary"><i class="bi bi-send"></i> 宣传品分配</a>
+      <a href="/admin/recovery?activity_id=<%= selectedActivity %>" class="btn btn-outline-primary"><i class="bi bi-arrow-counterclockwise"></i> 宣传品回收</a>
     <% } %>
+    <a href="/admin/export/inventory<%= selectedActivity ? '?activity_id=' + selectedActivity : '' %>" class="btn btn-success"><i class="bi bi-file-earmark-excel"></i> 导出库存报表</a>
+    <a href="/admin/export/detail<%= selectedActivity ? '?activity_id=' + selectedActivity : '' %>" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel"></i> 导出明细台账</a>
   </div>
 </div>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <form method="GET" action="/admin/inventory" class="row g-3 align-items-end">
+      <div class="col-12 col-lg-9">
+        <label class="form-label">选择单个活动</label>
+        <select class="form-select" name="activity_id" onchange="this.form.submit()">
+          <option value="">-- 请选择活动 --</option>
+          <% activities.forEach(function(a) { %>
+            <option value="<%= a.id %>" <%= selectedActivity == a.id ? 'selected' : '' %>><%= a.department_name ? a.department_name + ' - ' : '' %><%= a.name %></option>
+          <% }); %>
+        </select>
+      </div>
+      <div class="col-12 col-lg-3"><button class="btn btn-outline-primary w-100">查询</button></div>
+    </form>
+  </div>
+</div>
+
+<% if (!selectedActivity) { %>
+  <div class="alert alert-info"><i class="bi bi-info-circle"></i> 请先选择一个宣传活动查看库存总览。</div>
+<% } else if (inventory.length === 0) { %>
+  <div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i> 该活动暂无宣传品。</div>
+<% } else { %>
+  <div class="table-responsive">
+    <table class="table table-bordered table-sm align-middle inventory-wide-table">
+      <thead class="table-light">
+        <tr>
+          <th rowspan="2">牵头管理部门</th>
+          <th rowspan="2">营销活动名称</th>
+          <th rowspan="2">宣传品名称</th>
+          <th rowspan="2">总量</th>
+          <th rowspan="2">合计已分配数</th>
+          <th rowspan="2">总剩余库存数</th>
+          <% departments.forEach(function(dept) { %>
+            <th colspan="3" class="text-center"><%= dept.name %></th>
+          <% }); %>
+        </tr>
+        <tr>
+          <% departments.forEach(function() { %>
+            <th>合计领入数量</th><th>已使用数量</th><th>剩余库存</th>
+          <% }); %>
+        </tr>
+      </thead>
+      <tbody>
+        <% inventory.forEach(function(item) { %>
+          <tr>
+            <td><%= item.owner_department || '-' %></td>
+            <td><%= item.activity_name %></td>
+            <td><strong><%= item.material_name %></strong></td>
+            <td><%= item.total_quantity %></td>
+            <td><%= item.allocated %></td>
+            <td><%= item.unallocated %></td>
+            <% departments.forEach(function(dept) { var stock = departmentStocks[item.material_id + '_' + dept.name] || { allocated: 0, used: 0, remaining: 0 }; %>
+              <td><%= stock.allocated %></td>
+              <td><%= stock.used %></td>
+              <td><%= stock.remaining %></td>
+            <% }); %>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+<% } %>
 
 <%- include('../partials/footer') %>

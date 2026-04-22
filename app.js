@@ -39,7 +39,7 @@ app.use('/staff', staffRoutes);
 // 首页重定向
 app.get('/', (req, res) => {
   if (req.session && req.session.user) {
-    if (req.session.user.role === 1) {
+    if (req.session.user.role === 0 || req.session.user.role === 1) {
       res.redirect('/admin');
     } else {
       res.redirect('/staff');

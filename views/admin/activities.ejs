@@ -2,108 +2,45 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
   <h2><i class="bi bi-calendar-event"></i> 活动管理</h2>
-  <div class="action-buttons">
-    <a href="/admin/template/activities" class="btn btn-outline-secondary">
-      <i class="bi bi-download"></i> <span class="d-none d-sm-inline">下载模板</span><span class="d-inline d-sm-none">模板</span>
-    </a>
-  </div>
+  <a href="/admin/template/activities" class="btn btn-outline-secondary"><i class="bi bi-download"></i> 下载模板</a>
 </div>
 
-<!-- 导入活动 -->
 <div class="card mb-4">
-  <div class="card-header">
-    <i class="bi bi-upload"></i> 导入活动和宣传品
-  </div>
+  <div class="card-header"><i class="bi bi-upload"></i> 导入活动和宣传品</div>
   <div class="card-body">
     <form method="POST" action="/admin/activities/import" enctype="multipart/form-data" class="row g-3 align-items-end">
-      <div class="col-12 col-md-8">
+      <div class="col-12 col-lg-9">
         <label class="form-label">选择Excel文件</label>
         <input type="file" class="form-control" name="file" accept=".xlsx,.xls" required>
-        <div class="form-text">需包含：活动名称、宣传品名称、数量、单位</div>
+        <div class="form-text">模板字段：登记日期、活动名称、宣传品名称、数量。导入后活动统一归属当前录入一级人员所属部门/网点。</div>
       </div>
-      <div class="col-12 col-md-4">
-        <button type="submit" class="btn btn-primary w-100">
-          <i class="bi bi-upload"></i> 导入
-        </button>
-      </div>
+      <div class="col-12 col-lg-3"><button class="btn btn-primary w-100"><i class="bi bi-upload"></i> 导入</button></div>
     </form>
   </div>
 </div>
 
-<!-- 活动列表 -->
 <div class="card">
-  <div class="card-header">
-    <i class="bi bi-list"></i> 活动列表
-  </div>
+  <div class="card-header"><i class="bi bi-list"></i> 活动列表</div>
   <div class="card-body">
     <% if (activities.length === 0) { %>
-      <div class="text-center text-muted py-4">
-        <i class="bi bi-inbox fs-1"></i>
-        <p>暂无活动，请导入</p>
-      </div>
+      <div class="text-center text-muted py-4"><i class="bi bi-inbox fs-1"></i><p>暂无活动，请导入</p></div>
     <% } else { %>
-      <!-- 桌面版表格 -->
-      <div class="table-responsive desktop-only">
-        <table class="table table-hover">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>活动名称</th>
-              <th>宣传品种类</th>
-              <th>总数量</th>
-              <th>创建时间</th>
-              <th>操作</th>
-            </tr>
-          </thead>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead class="table-light"><tr><th>登记日期</th><th>归属部门/网点</th><th>活动名称</th><th>宣传品种类</th><th>总数量</th><th>操作</th></tr></thead>
           <tbody>
             <% activities.forEach(function(a) { %>
               <tr>
-                <td><%= a.id %></td>
+                <td><%= a.registration_date || '-' %></td>
+                <td><%= a.department_name || '-' %></td>
                 <td><strong><%= a.name %></strong></td>
                 <td><span class="badge bg-primary"><%= a.material_count %> 种</span></td>
                 <td><%= a.total_items %></td>
-                <td><%= a.created_at %></td>
-                <td>
-                  <a href="/admin/activities/<%= a.id %>" class="btn btn-sm btn-outline-primary">
-                    <i class="bi bi-eye"></i> 详情
-                  </a>
-                </td>
+                <td><a href="/admin/activities/<%= a.id %>" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i> 详情</a></td>
               </tr>
             <% }); %>
           </tbody>
         </table>
-      </div>
-
-      <!-- 移动版卡片 -->
-      <div class="mobile-only">
-        <% activities.forEach(function(a) { %>
-          <div class="table-mobile-card">
-            <div class="mobile-row">
-              <span class="mobile-label">活动名称:</span>
-              <span class="mobile-value"><strong><%= a.name %></strong></span>
-            </div>
-            <div class="mobile-row">
-              <span class="mobile-label">宣传品种类:</span>
-              <span class="mobile-value"><span class="badge bg-primary"><%= a.material_count %> 种</span></span>
-            </div>
-            <div class="mobile-row">
-              <span class="mobile-label">总数量:</span>
-              <span class="mobile-value"><%= a.total_items %></span>
-            </div>
-            <div class="mobile-row">
-              <span class="mobile-label">创建时间:</span>
-              <span class="mobile-value"><%= a.created_at %></span>
-            </div>
-            <div class="mobile-row">
-              <span class="mobile-label">操作:</span>
-              <span class="mobile-value">
-                <a href="/admin/activities/<%= a.id %>" class="btn btn-sm btn-outline-primary">
-                  <i class="bi bi-eye"></i> 查看详情
-                </a>
-              </span>
-            </div>
-          </div>
-        <% }); %>
       </div>
     <% } %>
   </div>

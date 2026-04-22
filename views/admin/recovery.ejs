@@ -1,0 +1,83 @@
+<%- include('../partials/admin-header') %>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2><i class="bi bi-arrow-counterclockwise"></i> 宣传品回收</h2>
+  <a href="/admin/inventory<%= selectedActivity ? '?activity_id=' + selectedActivity : '' %>" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> 返回库存</a>
+</div>
+
+<div class="row g-4">
+  <div class="col-12 col-lg-8">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-plus-circle"></i> 回收录入</div>
+      <div class="card-body">
+        <form method="GET" action="/admin/recovery" class="mb-4">
+          <label class="form-label">选择活动</label>
+          <select name="activity_id" class="form-select" onchange="this.form.submit()">
+            <option value="">-- 请选择活动 --</option>
+            <% activities.forEach(function(a) { %>
+              <option value="<%= a.id %>" <%= selectedActivity == a.id ? 'selected' : '' %>><%= a.name %></option>
+            <% }); %>
+          </select>
+        </form>
+
+        <% if (!selectedActivity) { %>
+          <div class="alert alert-info">请先选择一个活动。</div>
+        <% } else if (materials.length === 0) { %>
+          <div class="alert alert-warning">暂无可回收的宣传品库存。</div>
+        <% } else { %>
+          <form method="POST" action="/admin/recovery" onsubmit="setTimeout(function(){ alert('回收成功'); }, 50);">
+            <input type="hidden" name="activity_id" value="<%= selectedActivity %>">
+            <div class="mb-3">
+              <label class="form-label">选择宣传品与部门/网点</label>
+              <select name="material_department" id="materialDepartment" class="form-select" required>
+                <option value="">-- 请选择 --</option>
+                <% materials.forEach(function(m) { %>
+                  <option value="<%= m.material_id %>|<%= m.department_id %>" data-remaining="<%= m.remaining %>" data-unit="<%= m.unit %>">
+                    <%= m.department_name %> - <%= m.material_name %>（可回收 <%= m.remaining %> <%= m.unit %>）
+                  </option>
+                <% }); %>
+              </select>
+              <input type="hidden" name="material_id" id="materialId">
+              <input type="hidden" name="department_id" id="departmentId">
+            </div>
+            <div class="alert alert-info" id="stockInfo" style="display:none;">可回收库存：<strong id="remainingText">0</strong> <span id="unitText"></span></div>
+            <div class="mb-3">
+              <label class="form-label">回收数量</label>
+              <input type="number" class="form-control" name="quantity" id="quantityInput" min="1" required>
+            </div>
+            <div class="mb-4">
+              <label class="form-label">备注</label>
+              <textarea class="form-control" name="remark" rows="3" placeholder="可填写回收原因或说明"></textarea>
+            </div>
+            <button class="btn btn-primary"><i class="bi bi-check-lg"></i> 提交回收</button>
+          </form>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const select = document.getElementById('materialDepartment');
+  if (!select) return;
+  const materialId = document.getElementById('materialId');
+  const departmentId = document.getElementById('departmentId');
+  const info = document.getElementById('stockInfo');
+  const remainingText = document.getElementById('remainingText');
+  const unitText = document.getElementById('unitText');
+  const quantityInput = document.getElementById('quantityInput');
+  select.addEventListener('change', function() {
+    const selected = this.options[this.selectedIndex];
+    const parts = this.value.split('|');
+    materialId.value = parts[0] || '';
+    departmentId.value = parts[1] || '';
+    remainingText.textContent = selected.dataset.remaining || 0;
+    unitText.textContent = selected.dataset.unit || '';
+    quantityInput.max = selected.dataset.remaining || 0;
+    info.style.display = this.value ? 'block' : 'none';
+  });
+});
+</script>
+
+<%- include('../partials/footer') %>

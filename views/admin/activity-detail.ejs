@@ -2,95 +2,32 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
   <div>
-    <a href="/admin/activities" class="btn btn-outline-secondary btn-sm mb-2">
-      <i class="bi bi-arrow-left"></i> 返回
-    </a>
-    <h2><i class="bi bi-calendar-event"></i> <%= activity.name %></h2>
+    <h2 class="mb-1"><i class="bi bi-calendar-event"></i> <%= activity.name %></h2>
+    <div class="text-muted">登记日期：<%= activity.registration_date || '-' %>；归属部门/网点：<%= activity.department_name || '-' %></div>
   </div>
+  <a href="/admin/activities" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> 返回</a>
 </div>
 
-<!-- 宣传品列表 -->
 <div class="card">
-  <div class="card-header">
-    <i class="bi bi-box"></i> 宣传品列表
-  </div>
+  <div class="card-header"><i class="bi bi-box"></i> 宣传品明细</div>
   <div class="card-body">
-    <% if (materials.length === 0) { %>
-      <div class="text-center text-muted py-4">
-        <i class="bi bi-inbox fs-1"></i>
-        <p>暂无宣传品</p>
-      </div>
-    <% } else { %>
-      <!-- 桌面版表格 -->
-      <div class="table-responsive desktop-only">
-        <table class="table table-hover">
-          <thead>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead class="table-light"><tr><th>宣传品名称</th><th>初始总量</th><th>已分配下发</th><th>已使用</th><th>已回收</th><th>总剩余库存</th></tr></thead>
+        <tbody>
+          <% materials.forEach(function(m) { %>
             <tr>
-              <th>宣传品名称</th>
-              <th>单位</th>
-              <th>总数量</th>
-              <th>已分配</th>
-              <th>已使用</th>
-              <th>未分配</th>
+              <td><strong><%= m.name %></strong></td>
+              <td><%= m.total_quantity %></td>
+              <td><%= m.allocated %></td>
+              <td><%= m.used %></td>
+              <td><%= m.recovered %></td>
+              <td><span class="badge bg-success"><%= m.total_quantity - m.allocated + m.recovered %></span></td>
             </tr>
-          </thead>
-          <tbody>
-            <% materials.forEach(function(m) { %>
-              <tr>
-                <td><strong><%= m.name %></strong></td>
-                <td><%= m.unit %></td>
-                <td><%= m.total_quantity %></td>
-                <td><span class="badge bg-info"><%= m.allocated %></span></td>
-                <td><span class="badge bg-warning"><%= m.used %></span></td>
-                <td>
-                  <% var unallocated = m.total_quantity - m.allocated; %>
-                  <span class="badge <%= unallocated > 0 ? 'bg-success' : 'bg-secondary' %>">
-                    <%= unallocated %>
-                  </span>
-                </td>
-              </tr>
-            <% }); %>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- 移动版卡片 -->
-      <div class="mobile-only">
-        <% materials.forEach(function(m) { %>
-          <% var unallocated = m.total_quantity - m.allocated; %>
-          <div class="table-mobile-card">
-            <div class="mobile-row">
-              <span class="mobile-label">宣传品:</span>
-              <span class="mobile-value"><strong><%= m.name %></strong></span>
-            </div>
-            <div class="mobile-row">
-              <span class="mobile-label">单位:</span>
-              <span class="mobile-value"><%= m.unit %></span>
-            </div>
-            <div class="mobile-row">
-              <span class="mobile-label">总数量:</span>
-              <span class="mobile-value"><%= m.total_quantity %></span>
-            </div>
-            <div class="mobile-row">
-              <span class="mobile-label">已分配:</span>
-              <span class="mobile-value"><span class="badge bg-info"><%= m.allocated %></span></span>
-            </div>
-            <div class="mobile-row">
-              <span class="mobile-label">已使用:</span>
-              <span class="mobile-value"><span class="badge bg-warning"><%= m.used %></span></span>
-            </div>
-            <div class="mobile-row">
-              <span class="mobile-label">未分配:</span>
-              <span class="mobile-value">
-                <span class="badge <%= unallocated > 0 ? 'bg-success' : 'bg-secondary' %>">
-                  <%= unallocated %>
-                </span>
-              </span>
-            </div>
-          </div>
-        <% }); %>
-      </div>
-    <% } %>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 
