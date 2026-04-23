@@ -1,34 +1,12 @@
 const express = require('express');
-const router = express.Router();
 const bcrypt = require('bcryptjs');
 const db = require('../database/init');
+const { passwordRuleError } = require('../utils/helpers');
+
+const router = express.Router();
 
 function homeForRole(role) {
   return role === 2 ? '/staff' : '/admin';
-}
-
-function passwordRuleError(password, user) {
-  if (!password || password.length < 6) {
-    return '密码长度至少6位';
-  }
-  if (/^(\d)\1{3,}$/.test(password)) {
-    return '密码不能是4位以上重复数字';
-  }
-  if (/\d{3,}/.test(password)) {
-    for (let i = 0; i <= password.length - 3; i++) {
-      const part = password.slice(i, i + 3);
-      if (/^\d{3}$/.test(part)) {
-        const nums = part.split('').map(Number);
-        if (nums[1] === nums[0] + 1 && nums[2] === nums[1] + 1) {
-          return '密码不能包含3位以上连续数字';
-        }
-      }
-    }
-  }
-  if (user && bcrypt.compareSync(password, user.password)) {
-    return '新密码不能和上一次密码相同';
-  }
-  return null;
 }
 
 router.get('/login', (req, res) => {
@@ -42,7 +20,7 @@ router.post('/login', (req, res) => {
   const { username, password } = req.body;
   const user = db.get('SELECT * FROM users WHERE username = ?', [username]);
 
-  if (!user || !bcrypt.compareSync(password, user.password)) {
+  if (!user || !bcrypt.compareSync(password || '', user.password)) {
     return res.render('login', { error: '用户名或密码错误' });
   }
 
@@ -55,8 +33,9 @@ router.post('/login', (req, res) => {
     must_change_password: user.must_change_password
   };
 
-  if (user.role === 2 && user.must_change_password) {
-    return res.redirect('/staff/password?first=1');
+  if (user.must_change_password) {
+    if (user.role === 2) return res.redirect('/staff/password?first=1');
+    if (user.role === 1) return res.redirect('/admin/password?first=1');
   }
 
   res.redirect(homeForRole(user.role));

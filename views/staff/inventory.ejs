@@ -3,7 +3,7 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
   <h2><i class="bi bi-box"></i> 库存管理</h2>
   <div class="action-buttons">
-    <a href="/staff/export/inventory<%= selectedActivity ? '?activity_id=' + selectedActivity : '' %>" class="btn btn-success"><i class="bi bi-file-earmark-excel"></i> 导出库存及明细台账</a>
+    <a href="/staff/export/inventory<%= selectedActivity ? '?activity_id=' + selectedActivity : '' %>" class="btn btn-success"><i class="bi bi-file-earmark-excel"></i> 导出库存报表</a>
   </div>
 </div>
 
@@ -11,31 +11,41 @@
   <div class="card-body">
     <form method="GET" action="/staff/inventory" class="row g-3 align-items-end">
       <div class="col-12 col-lg-9">
-        <label class="form-label">选择单个宣传活动类别</label>
+        <label class="form-label">活动</label>
         <select class="form-select" name="activity_id" onchange="this.form.submit()">
           <option value="">-- 请选择活动 --</option>
-          <% activities.forEach(function(a) { %>
-            <option value="<%= a.id %>" <%= selectedActivity == a.id ? 'selected' : '' %>><%= a.name %></option>
+          <% activities.forEach(function(activity) { %>
+            <option value="<%= activity.id %>" <%= String(selectedActivity) === String(activity.id) ? 'selected' : '' %>><%= activity.name %></option>
           <% }); %>
         </select>
       </div>
-      <div class="col-12 col-lg-3"><button class="btn btn-outline-primary w-100">查询</button></div>
+      <div class="col-12 col-lg-3">
+        <button class="btn btn-outline-primary w-100">查询</button>
+      </div>
     </form>
   </div>
 </div>
 
 <% if (!selectedActivity) { %>
-  <div class="alert alert-info"><i class="bi bi-info-circle"></i> 请先选择一个宣传活动类别。</div>
+  <div class="alert alert-info"><i class="bi bi-info-circle"></i> 请先选择一个活动后查看库存。</div>
 <% } else if (inventory.length === 0) { %>
   <div class="alert alert-warning">该活动暂无本部门/网点库存。</div>
 <% } else { %>
   <div class="card">
-    <div class="card-header"><i class="bi bi-table"></i> 二级人员宣传库存报表</div>
+    <div class="card-header"><i class="bi bi-table"></i> 库存报表</div>
     <div class="card-body">
       <div class="table-responsive">
         <table class="table table-hover align-middle">
           <thead class="table-light">
-            <tr><th>部门/网点</th><th>营销活动名称</th><th>宣传品名称</th><th>分发入库总量</th><th>已使用数量</th><th>已回收上交数量</th><th>剩余库存数量</th></tr>
+            <tr>
+              <th>部门/网点</th>
+              <th>活动名称</th>
+              <th>宣传品名称</th>
+              <th>当前已分配</th>
+              <th>已领用</th>
+              <th>已回收</th>
+              <th>剩余库存</th>
+            </tr>
           </thead>
           <tbody>
             <% inventory.forEach(function(item) { %>

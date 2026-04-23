@@ -3,7 +3,7 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
   <div>
     <h2 class="mb-1"><i class="bi bi-calendar-event"></i> <%= activity.name %></h2>
-    <div class="text-muted">登记日期：<%= activity.registration_date || '-' %>；归属部门/网点：<%= activity.department_name || '-' %></div>
+    <div class="text-muted">登记日期：<%= activity.registration_date || '-' %>　活动负责部门：<%= activity.department_name || '-' %></div>
   </div>
   <a href="/admin/activities" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> 返回</a>
 </div>
@@ -13,16 +13,25 @@
   <div class="card-body">
     <div class="table-responsive">
       <table class="table table-hover align-middle">
-        <thead class="table-light"><tr><th>宣传品名称</th><th>初始总量</th><th>已分配下发</th><th>已使用</th><th>已回收</th><th>总剩余库存</th></tr></thead>
+        <thead class="table-light">
+          <tr>
+            <th>宣传品名称</th>
+            <th>总量</th>
+            <th>当前已分配</th>
+            <th>已领用</th>
+            <th>已回收</th>
+            <th>剩余可分配</th>
+          </tr>
+        </thead>
         <tbody>
-          <% materials.forEach(function(m) { %>
+          <% materials.forEach(function(material) { %>
             <tr>
-              <td><strong><%= m.name %></strong></td>
-              <td><%= m.total_quantity %></td>
-              <td><%= m.allocated %></td>
-              <td><%= m.used %></td>
-              <td><%= m.recovered %></td>
-              <td><span class="badge bg-success"><%= m.total_quantity - m.allocated + m.recovered %></span></td>
+              <td><strong><%= material.name %></strong></td>
+              <td><%= material.total_quantity %></td>
+              <td><%= material.allocated %></td>
+              <td><%= material.used %></td>
+              <td><%= material.recovered %></td>
+              <td><span class="badge bg-success"><%= material.total_quantity - material.allocated %></span></td>
             </tr>
           <% }); %>
         </tbody>

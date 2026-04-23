@@ -4,71 +4,70 @@
 
 <div class="row g-4 mb-4">
   <div class="col-6 col-lg-3">
-    <div class="card bg-primary text-white h-100"><div class="card-body">
-      <div class="d-flex justify-content-between align-items-center">
-        <div><h6 class="text-white-50">部门/网点</h6><h2 class="mb-0"><%= stats.departmentCount %></h2></div>
-        <i class="bi bi-building fs-1 text-white-50"></i>
+    <div class="card stat-card border-0 bg-primary text-white h-100">
+      <div class="card-body">
+        <div class="small opacity-75">部门/网点</div>
+        <div class="display-6 fw-semibold"><%= stats.departmentCount %></div>
       </div>
-    </div></div>
+    </div>
   </div>
   <div class="col-6 col-lg-3">
-    <div class="card bg-success text-white h-100"><div class="card-body">
-      <div class="d-flex justify-content-between align-items-center">
-        <div><h6 class="text-white-50">一级人员</h6><h2 class="mb-0"><%= stats.primaryUserCount %></h2></div>
-        <i class="bi bi-person-badge fs-1 text-white-50"></i>
+    <div class="card stat-card border-0 bg-success text-white h-100">
+      <div class="card-body">
+        <div class="small opacity-75">一级人员</div>
+        <div class="display-6 fw-semibold"><%= stats.primaryUserCount %></div>
       </div>
-    </div></div>
+    </div>
   </div>
   <div class="col-6 col-lg-3">
-    <div class="card bg-info text-white h-100"><div class="card-body">
-      <div class="d-flex justify-content-between align-items-center">
-        <div><h6 class="text-white-50">二级人员</h6><h2 class="mb-0"><%= stats.staffUserCount %></h2></div>
-        <i class="bi bi-people fs-1 text-white-50"></i>
+    <div class="card stat-card border-0 bg-info text-white h-100">
+      <div class="card-body">
+        <div class="small opacity-75">二级人员</div>
+        <div class="display-6 fw-semibold"><%= stats.staffUserCount %></div>
       </div>
-    </div></div>
+    </div>
   </div>
   <div class="col-6 col-lg-3">
-    <div class="card bg-warning text-dark h-100"><div class="card-body">
-      <div class="d-flex justify-content-between align-items-center">
-        <div><h6>宣传品种类</h6><h2 class="mb-0"><%= stats.materialCount %></h2></div>
-        <i class="bi bi-box fs-1"></i>
+    <div class="card stat-card border-0 bg-warning h-100">
+      <div class="card-body">
+        <div class="small text-muted">宣传品种类</div>
+        <div class="display-6 fw-semibold"><%= stats.materialCount %></div>
       </div>
-    </div></div>
+    </div>
   </div>
 </div>
 
 <div class="row g-4">
-  <% if (user.role === 0) { %>
-    <div class="col-12 col-lg-6">
-      <div class="card h-100">
-        <div class="card-header"><i class="bi bi-shield-lock"></i> 超级管理员功能</div>
-        <div class="card-body d-grid gap-2">
-          <a href="/admin/users" class="btn btn-outline-primary"><i class="bi bi-people"></i> 人员权限管理 / 人员密钥管理</a>
-          <a href="/admin/departments" class="btn btn-outline-primary"><i class="bi bi-building"></i> 部门/网点设置</a>
-          <a href="/admin/inventory" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel"></i> 报表查看及导出</a>
-        </div>
-      </div>
-    </div>
-  <% } else { %>
-    <div class="col-12 col-lg-6">
-      <div class="card h-100">
-        <div class="card-header"><i class="bi bi-lightning"></i> 一级人员功能</div>
-        <div class="card-body d-grid gap-2">
-          <a href="/admin/activities" class="btn btn-outline-primary"><i class="bi bi-plus-circle"></i> 活动管理</a>
-          <a href="/admin/inventory" class="btn btn-outline-primary"><i class="bi bi-box"></i> 库存管理</a>
-        </div>
-      </div>
-    </div>
-  <% } %>
-
   <div class="col-12 col-lg-6">
     <div class="card h-100">
-      <div class="card-header"><i class="bi bi-download"></i> 常用报表</div>
+      <div class="card-header"><i class="bi bi-grid"></i> 常用功能</div>
       <div class="card-body d-grid gap-2">
-        <a href="/admin/export/inventory" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel"></i> 导出宣传品库存报表</a>
-        <a href="/admin/export/detail" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel"></i> 导出宣传品明细报表</a>
         <% if (user.role === 0) { %>
-          <a href="/admin/export/usage" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel"></i> 导出领用明细</a>
+          <a href="/admin/users" class="btn btn-outline-primary"><i class="bi bi-people"></i> 人员权限管理</a>
+          <a href="/admin/departments" class="btn btn-outline-primary"><i class="bi bi-building"></i> 部门/网点设置</a>
+          <a href="/admin/inventory" class="btn btn-outline-success"><i class="bi bi-file-earmark-bar-graph"></i> 报表管理</a>
+        <% } else { %>
+          <a href="/admin/activities" class="btn btn-outline-primary"><i class="bi bi-calendar-event"></i> 活动管理</a>
+          <a href="/admin/inventory" class="btn btn-outline-primary"><i class="bi bi-box"></i> 库存管理</a>
+          <a href="/admin/password" class="btn btn-outline-primary"><i class="bi bi-key"></i> 密码管理</a>
+        <% } %>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-6">
+    <div class="card h-100">
+      <div class="card-header"><i class="bi bi-info-circle"></i> 当前能力</div>
+      <div class="card-body">
+        <% if (user.role === 0) { %>
+          <p class="mb-2">可以按部门/网点和活动筛选库存报表与明细报表，并按筛选结果导出。</p>
+          <p class="mb-0 text-muted">库存总表与明细报表已支持合并单元格展示。</p>
+        <% } else { %>
+          <p class="mb-2">可进行活动导入、库存分配、回收登记，以及按活动导出库存报表和明细报表。</p>
+          <% if (canDeleteActivities) { %>
+            <p class="mb-0 text-muted">当前账号属于综合管理部，可删除未派发的活动。</p>
+          <% } else { %>
+            <p class="mb-0 text-muted">活动删除仅限综合管理部一级人员，且活动下宣传品未派发时才可删除。</p>
+          <% } %>
         <% } %>
       </div>
     </div>

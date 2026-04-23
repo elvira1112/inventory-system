@@ -44,10 +44,15 @@
                 <i class="bi bi-calendar-event"></i> 活动管理
               </a>
             </li>
+            <li class="nav-item">
+              <a class="nav-link <%= currentPage === 'password' ? 'active' : '' %>" href="/admin/password">
+                <i class="bi bi-key"></i> 密码管理
+              </a>
+            </li>
           <% } %>
           <li class="nav-item">
             <a class="nav-link <%= currentPage === 'inventory' ? 'active' : '' %>" href="/admin/inventory">
-              <i class="bi bi-box"></i> <%= user.role === 0 ? '报表查看及导出' : '库存管理' %>
+              <i class="bi bi-box"></i> <%= user.role === 0 ? '报表管理' : '库存管理' %>
             </a>
           </li>
         </ul>
@@ -59,6 +64,9 @@
               <span class="badge bg-light text-primary ms-1"><%= user.role === 0 ? '超级管理员' : '一级人员' %></span>
             </a>
             <ul class="dropdown-menu dropdown-menu-end">
+              <% if (user.role === 1) { %>
+                <li><a class="dropdown-item" href="/admin/password"><i class="bi bi-key"></i> 密码管理</a></li>
+              <% } %>
               <li><a class="dropdown-item" href="/logout"><i class="bi bi-box-arrow-right"></i> 退出登录</a></li>
             </ul>
           </li>
@@ -67,3 +75,13 @@
     </div>
   </nav>
   <main class="container-fluid px-3 px-lg-4 py-4">
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="alert alert-danger"><%= error %></div>
+    <% } %>
+    <% if (typeof success !== 'undefined' && success) { %>
+      <div class="alert alert-success"><%= success %></div>
+    <% } %>
+    <% if (typeof query !== 'undefined') { %>
+      <% if (query.error) { %><div class="alert alert-danger"><%= query.error %></div><% } %>
+      <% if (query.success) { %><div class="alert alert-success"><%= query.success %></div><% } %>
+    <% } %>

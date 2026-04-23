@@ -312,6 +312,25 @@ main {
   vertical-align: middle;
 }
 
+.stat-card {
+  border-radius: 1rem;
+}
+
+.allocation-table .material-head {
+  min-width: 220px;
+  background: #f8fafc;
+}
+
+.allocation-overflow {
+  background: #fff1f2 !important;
+  border-color: #f43f5e !important;
+}
+
+.allocation-input.is-invalid {
+  border-color: #dc3545;
+  background-color: #fff5f5;
+}
+
 @media (max-width: 767.98px) {
   .mobile-only {
     display: block;

@@ -1,78 +1,160 @@
 <%- include('../partials/admin-header') %>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-  <h2><i class="bi bi-box"></i> <%= user.role === 0 ? '报表查看及导出' : '库存管理' %></h2>
+  <h2><i class="bi bi-box"></i> <%= user.role === 0 ? '报表管理' : '库存管理' %></h2>
   <div class="action-buttons">
+    <% const queryString = `activity_id=${encodeURIComponent(selectedActivity || '')}&department_id=${encodeURIComponent(selectedDepartment || '')}`; %>
     <% if (user.role === 1 && selectedActivity) { %>
       <a href="/admin/allocations?activity_id=<%= selectedActivity %>" class="btn btn-primary"><i class="bi bi-send"></i> 宣传品分配</a>
       <a href="/admin/recovery?activity_id=<%= selectedActivity %>" class="btn btn-outline-primary"><i class="bi bi-arrow-counterclockwise"></i> 宣传品回收</a>
     <% } %>
-    <a href="/admin/export/inventory<%= selectedActivity ? '?activity_id=' + selectedActivity : '' %>" class="btn btn-success"><i class="bi bi-file-earmark-excel"></i> 导出库存报表</a>
-    <a href="/admin/export/detail<%= selectedActivity ? '?activity_id=' + selectedActivity : '' %>" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel"></i> 导出明细台账</a>
+    <a href="/admin/export/inventory?<%= queryString %>" class="btn btn-success"><i class="bi bi-file-earmark-excel"></i> 导出库存报表</a>
+    <a href="/admin/export/detail?<%= queryString %>" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel"></i> 导出明细报表</a>
   </div>
 </div>
 
 <div class="card mb-4">
   <div class="card-body">
     <form method="GET" action="/admin/inventory" class="row g-3 align-items-end">
-      <div class="col-12 col-lg-9">
-        <label class="form-label">选择单个活动</label>
-        <select class="form-select" name="activity_id" onchange="this.form.submit()">
-          <option value="">-- 请选择活动 --</option>
-          <% activities.forEach(function(a) { %>
-            <option value="<%= a.id %>" <%= selectedActivity == a.id ? 'selected' : '' %>><%= a.department_name ? a.department_name + ' - ' : '' %><%= a.name %></option>
-          <% }); %>
-        </select>
-      </div>
-      <div class="col-12 col-lg-3"><button class="btn btn-outline-primary w-100">查询</button></div>
+      <% if (user.role === 0) { %>
+        <div class="col-12 col-lg-4">
+          <label class="form-label">部门/网点</label>
+          <select class="form-select" name="department_id">
+            <option value="">全部部门/网点</option>
+            <% allDepartments.forEach(function(department) { %>
+              <option value="<%= department.id %>" <%= String(selectedDepartment) === String(department.id) ? 'selected' : '' %>><%= department.name %></option>
+            <% }); %>
+          </select>
+        </div>
+        <div class="col-12 col-lg-5">
+          <label class="form-label">活动</label>
+          <select class="form-select" name="activity_id">
+            <option value="">全部活动</option>
+            <% activities.forEach(function(activity) { %>
+              <option value="<%= activity.id %>" <%= String(selectedActivity) === String(activity.id) ? 'selected' : '' %>>
+                <%= activity.department_name ? `${activity.department_name} - ` : '' %><%= activity.name %>
+              </option>
+            <% }); %>
+          </select>
+        </div>
+        <div class="col-12 col-lg-3">
+          <button class="btn btn-outline-primary w-100">筛选报表</button>
+        </div>
+      <% } else { %>
+        <div class="col-12 col-lg-9">
+          <label class="form-label">活动</label>
+          <select class="form-select" name="activity_id" onchange="this.form.submit()">
+            <option value="">请选择活动</option>
+            <% activities.forEach(function(activity) { %>
+              <option value="<%= activity.id %>" <%= String(selectedActivity) === String(activity.id) ? 'selected' : '' %>>
+                <%= activity.department_name ? `${activity.department_name} - ` : '' %><%= activity.name %>
+              </option>
+            <% }); %>
+          </select>
+        </div>
+        <div class="col-12 col-lg-3">
+          <button class="btn btn-outline-primary w-100">查询</button>
+        </div>
+      <% } %>
     </form>
   </div>
 </div>
 
-<% if (!selectedActivity) { %>
-  <div class="alert alert-info"><i class="bi bi-info-circle"></i> 请先选择一个宣传活动查看库存总览。</div>
-<% } else if (inventory.length === 0) { %>
-  <div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i> 该活动暂无宣传品。</div>
+<% if (user.role === 1 && !selectedActivity) { %>
+  <div class="alert alert-info"><i class="bi bi-info-circle"></i> 请先选择一个活动后查看库存管理。</div>
 <% } else { %>
-  <div class="table-responsive">
-    <table class="table table-bordered table-sm align-middle inventory-wide-table">
-      <thead class="table-light">
-        <tr>
-          <th rowspan="2">牵头管理部门</th>
-          <th rowspan="2">营销活动名称</th>
-          <th rowspan="2">宣传品名称</th>
-          <th rowspan="2">总量</th>
-          <th rowspan="2">合计已分配数</th>
-          <th rowspan="2">总剩余库存数</th>
-          <% departments.forEach(function(dept) { %>
-            <th colspan="3" class="text-center"><%= dept.name %></th>
-          <% }); %>
-        </tr>
-        <tr>
-          <% departments.forEach(function() { %>
-            <th>合计领入数量</th><th>已使用数量</th><th>剩余库存</th>
-          <% }); %>
-        </tr>
-      </thead>
-      <tbody>
-        <% inventory.forEach(function(item) { %>
-          <tr>
-            <td><%= item.owner_department || '-' %></td>
-            <td><%= item.activity_name %></td>
-            <td><strong><%= item.material_name %></strong></td>
-            <td><%= item.total_quantity %></td>
-            <td><%= item.allocated %></td>
-            <td><%= item.unallocated %></td>
-            <% departments.forEach(function(dept) { var stock = departmentStocks[item.material_id + '_' + dept.name] || { allocated: 0, used: 0, remaining: 0 }; %>
-              <td><%= stock.allocated %></td>
-              <td><%= stock.used %></td>
-              <td><%= stock.remaining %></td>
-            <% }); %>
-          </tr>
-        <% }); %>
-      </tbody>
-    </table>
+  <div class="card mb-4">
+    <div class="card-header"><i class="bi bi-table"></i> 库存总表</div>
+    <div class="card-body">
+      <% if (inventory.length === 0) { %>
+        <div class="text-muted">当前筛选条件下暂无数据。</div>
+      <% } else { %>
+        <div class="table-responsive">
+          <table class="table table-bordered table-sm align-middle inventory-wide-table">
+            <thead class="table-light">
+              <tr>
+                <th rowspan="2">活动负责部门</th>
+                <th rowspan="2">活动名称</th>
+                <th rowspan="2">宣传品名称</th>
+                <th rowspan="2">总量</th>
+                <th rowspan="2">合计已分配</th>
+                <th rowspan="2">剩余可分配</th>
+                <% departments.forEach(function(department) { %>
+                  <th colspan="3" class="text-center"><%= department.name %></th>
+                <% }); %>
+              </tr>
+              <tr>
+                <% departments.forEach(function() { %>
+                  <th>已分配</th>
+                  <th>已领用</th>
+                  <th>剩余库存</th>
+                <% }); %>
+              </tr>
+            </thead>
+            <tbody>
+              <% inventory.forEach(function(item) { %>
+                <tr>
+                  <td><%= item.owner_department || '-' %></td>
+                  <td><%= item.activity_name %></td>
+                  <td><strong><%= item.material_name %></strong></td>
+                  <td><%= item.total_quantity %></td>
+                  <td><span class="badge bg-primary"><%= item.allocated %></span></td>
+                  <td><span class="badge bg-success"><%= item.unallocated %></span></td>
+                  <% departments.forEach(function(department) { const stock = departmentStocks[item.material_id + '_' + department.name] || { allocated: 0, used: 0, remaining: 0 }; %>
+                    <td><%= stock.allocated %></td>
+                    <td><%= stock.used %></td>
+                    <td><%= stock.remaining %></td>
+                  <% }); %>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </div>
   </div>
+
+  <% if (user.role === 0) { %>
+    <div class="card">
+      <div class="card-header"><i class="bi bi-journal-text"></i> 明细报表</div>
+      <div class="card-body">
+        <% if (detailRows.length === 0) { %>
+          <div class="text-muted">当前筛选条件下暂无明细数据。</div>
+        <% } else { %>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th>活动负责部门</th>
+                  <th>部门/网点</th>
+                  <th>活动名称</th>
+                  <th>宣传品名称</th>
+                  <th>类型</th>
+                  <th>数量</th>
+                  <th>时间</th>
+                  <th>备注</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% detailRows.forEach(function(row) { %>
+                  <tr>
+                    <td><%= row['活动负责部门'] || '-' %></td>
+                    <td><%= row['部门/网点'] || '-' %></td>
+                    <td><%= row['活动名称'] || '-' %></td>
+                    <td><strong><%= row['宣传品名称'] || '-' %></strong></td>
+                    <td><span class="badge <%= row['类型'] === '回收' ? 'bg-warning text-dark' : 'bg-secondary' %>"><%= row['类型'] %></span></td>
+                    <td><%= row['数量'] %></td>
+                    <td><%= row['时间'] || '-' %></td>
+                    <td><%= row['备注'] || '-' %></td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  <% } %>
 <% } %>
 
 <%- include('../partials/footer') %>
