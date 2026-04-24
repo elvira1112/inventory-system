@@ -1,0 +1,106 @@
+<%- include('../partials/admin-header') %>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2><i class="bi bi-people"></i> 人员权限管理</h2>
+  <a href="/admin/template/users" class="btn btn-outline-secondary"><i class="bi bi-download"></i> 下载模板</a>
+</div>
+
+<% if (typeof success !== 'undefined' || typeof error !== 'undefined') { %><% } %>
+
+<div class="row g-4 mb-4">
+  <div class="col-12 col-lg-6">
+    <div class="card h-100">
+      <div class="card-header"><i class="bi bi-upload"></i> 批量导入人员</div>
+      <div class="card-body">
+        <form method="POST" action="/admin/users/import" enctype="multipart/form-data">
+          <input type="file" class="form-control mb-3" name="file" accept=".xlsx,.xls" required>
+          <div class="form-text mb-3">模板字段：用户名、姓名、密码、权限（1=一级人员，2=二级人员）、部门/网点。</div>
+          <button type="submit" class="btn btn-primary w-100"><i class="bi bi-upload"></i> 导入人员</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-6">
+    <div class="card h-100">
+      <div class="card-header"><i class="bi bi-person-plus"></i> 单个录入人员</div>
+      <div class="card-body">
+        <form method="POST" action="/admin/users/add" class="row g-2">
+          <div class="col-12 col-md-6"><input type="text" class="form-control" name="username" placeholder="用户名" required></div>
+          <div class="col-12 col-md-6"><input type="text" class="form-control" name="name" placeholder="姓名" required></div>
+          <div class="col-12 col-md-6"><input type="password" class="form-control" name="password" placeholder="初始密码，默认123456"></div>
+          <div class="col-12 col-md-6">
+            <select class="form-select" name="role" required>
+              <option value="1">一级人员</option>
+              <option value="2" selected>二级人员</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <select class="form-select" name="department_id" required>
+              <option value="">选择部门/网点</option>
+              <% departments.forEach(function(dept) { %>
+                <option value="<%= dept.id %>"><%= dept.name %></option>
+              <% }); %>
+            </select>
+          </div>
+          <div class="col-12"><button type="submit" class="btn btn-primary w-100"><i class="bi bi-plus"></i> 添加人员</button></div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><i class="bi bi-key"></i> 人员列表与密钥管理</div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>用户名</th>
+            <th>姓名</th>
+            <th>权限</th>
+            <th>部门/网点</th>
+            <th>初始密码状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% users.forEach(function(u) { %>
+            <tr>
+              <td><%= u.username %></td>
+              <td><%= u.name %></td>
+              <td><span class="badge bg-primary"><%= u.role_name %></span></td>
+              <td><%= u.department_name || '-' %></td>
+              <td><%= u.must_change_password ? '待修改' : '正常' %></td>
+              <td>
+                <% if (u.username !== 'admin') { %>
+                  <button class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#editUser<%= u.id %>"><i class="bi bi-pencil"></i></button>
+                  <form method="POST" action="/admin/users/reset-password/<%= u.id %>" class="d-inline">
+                    <input type="hidden" name="password" value="123456">
+                    <button type="submit" class="btn btn-sm btn-outline-warning" onclick="return confirm('确定重置为 123456？')"><i class="bi bi-key"></i></button>
+                  </form>
+                  <form method="POST" action="/admin/users/delete/<%= u.id %>" class="d-inline" onsubmit="return confirm('确定删除该人员？')">
+                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                  </form>
+                <% } %>
+              </td>
+            </tr>
+            <tr class="collapse" id="editUser<%= u.id %>">
+              <td colspan="6">
+                <form method="POST" action="/admin/users/update/<%= u.id %>" class="row g-2 align-items-end">
+                  <div class="col-12 col-md-3"><label class="form-label">姓名</label><input class="form-control" name="name" value="<%= u.name %>" required></div>
+                  <div class="col-12 col-md-3"><label class="form-label">权限</label><select class="form-select" name="role"><option value="1" <%= u.role === 1 ? 'selected' : '' %>>一级人员</option><option value="2" <%= u.role === 2 ? 'selected' : '' %>>二级人员</option></select></div>
+                  <div class="col-12 col-md-4"><label class="form-label">部门/网点</label><select class="form-select" name="department_id"><% departments.forEach(function(dept) { %><option value="<%= dept.id %>" <%= u.department_id === dept.id ? 'selected' : '' %>><%= dept.name %></option><% }); %></select></div>
+                  <div class="col-12 col-md-2"><button class="btn btn-primary w-100">保存</button></div>
+                </form>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

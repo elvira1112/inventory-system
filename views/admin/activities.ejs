@@ -1,0 +1,80 @@
+<%- include('../partials/admin-header') %>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2><i class="bi bi-calendar-event"></i> 活动管理</h2>
+  <a href="/admin/template/activities" class="btn btn-outline-secondary"><i class="bi bi-download"></i> 下载模板</a>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header"><i class="bi bi-upload"></i> 导入活动与宣传品</div>
+  <div class="card-body">
+    <form method="POST" action="/admin/activities/import" enctype="multipart/form-data" class="row g-3 align-items-end">
+      <div class="col-12 col-lg-9">
+        <label class="form-label">选择 Excel 文件</label>
+        <input type="file" class="form-control" name="file" accept=".xlsx,.xls" required>
+        <div class="form-text">模板字段：登记日期、活动名称、宣传品名称、数量、单位。导入后活动负责部门默认为当前一级人员所属部门/网点。</div>
+      </div>
+      <div class="col-12 col-lg-3">
+        <button class="btn btn-primary w-100"><i class="bi bi-upload"></i> 导入</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><i class="bi bi-list"></i> 活动列表</div>
+  <div class="card-body">
+    <% if (activities.length === 0) { %>
+      <div class="text-center text-muted py-4">
+        <i class="bi bi-inbox fs-1"></i>
+        <p class="mt-2 mb-0">暂无活动，请先导入。</p>
+      </div>
+    <% } else { %>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>登记日期</th>
+              <th>活动负责部门</th>
+              <th>活动名称</th>
+              <th>宣传品种类</th>
+              <th>总量</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% activities.forEach(function(activity) { %>
+              <tr>
+                <td><%= activity.registration_date || '-' %></td>
+                <td><%= activity.department_name || '-' %></td>
+                <td><strong><%= activity.name %></strong></td>
+                <td><span class="badge bg-primary"><%= activity.material_count %> 类</span></td>
+                <td><%= activity.total_items %></td>
+                <td>
+                  <div class="d-flex flex-wrap gap-2">
+                    <a href="/admin/activities/<%= activity.id %>" class="btn btn-sm btn-outline-primary">
+                      <i class="bi bi-eye"></i> 详情
+                    </a>
+                    <% if (canDeleteActivities) { %>
+                      <% if (activity.can_delete) { %>
+                        <form method="POST" action="/admin/activities/delete/<%= activity.id %>" onsubmit="return confirm('确认删除该活动及其未派发宣传品吗？');">
+                          <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> 删除</button>
+                        </form>
+                      <% } else { %>
+                        <button class="btn btn-sm btn-outline-secondary" disabled title="已有派发记录，不能删除">
+                          <i class="bi bi-lock"></i> 已派发不可删
+                        </button>
+                      <% } %>
+                    <% } %>
+                  </div>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

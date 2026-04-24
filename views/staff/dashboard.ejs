@@ -1,0 +1,68 @@
+<%- include('../partials/staff-header') %>
+
+<h2 class="mb-4"><i class="bi bi-house-door"></i> 工作台首页</h2>
+
+<div class="row g-4">
+  <div class="col-12 col-lg-7">
+    <div class="card h-100">
+      <div class="card-header"><i class="bi bi-box"></i> 近期库存</div>
+      <div class="card-body">
+        <% if (inventory.length === 0) { %>
+          <div class="text-muted">暂无库存数据。</div>
+        <% } else { %>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th>活动</th>
+                  <th>宣传品</th>
+                  <th>当前已分配</th>
+                  <th>已领用</th>
+                  <th>已回收</th>
+                  <th>剩余</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% inventory.forEach(function(item) { %>
+                  <tr>
+                    <td><%= item.activity_name %></td>
+                    <td><strong><%= item.material_name %></strong></td>
+                    <td><%= item.allocated %></td>
+                    <td><%= item.used %></td>
+                    <td><%= item.recovered %></td>
+                    <td><span class="badge bg-success"><%= item.remaining %></span></td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-5">
+    <div class="card h-100">
+      <div class="card-header"><i class="bi bi-clock-history"></i> 最近领用</div>
+      <div class="card-body">
+        <% if (recentUsage.length === 0) { %>
+          <div class="text-muted">暂无领用记录。</div>
+        <% } else { %>
+          <div class="list-group list-group-flush">
+            <% recentUsage.forEach(function(record) { %>
+              <div class="list-group-item px-0">
+                <div class="fw-semibold">
+                  <%= record.material_name %>
+                  <span class="badge bg-primary"><%= record.quantity %> <%= record.unit %></span>
+                </div>
+                <div class="small text-muted"><%= record.activity_name %> · <%= record.created_at %></div>
+                <div class="small text-muted">客户：<%= record.customer_name_masked || '-' %></div>
+              </div>
+            <% }); %>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

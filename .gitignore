@@ -1,0 +1,8 @@
+node_modules/
+uploads/
+database/inventory.db
+*.log
+.env
+.vscode
+.claude
+.code_deploy

@@ -1,0 +1,163 @@
+<%- include('../partials/admin-header') %>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2><i class="bi bi-send"></i> 宣传品分配</h2>
+  <a href="/admin/inventory<%= selectedActivity ? '?activity_id=' + selectedActivity : '' %>" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> 返回库存
+  </a>
+</div>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <form method="GET" action="/admin/allocations" class="row g-3 align-items-end">
+      <div class="col-12 col-lg-9">
+        <label class="form-label">选择活动</label>
+        <select name="activity_id" class="form-select" onchange="this.form.submit()">
+          <option value="">-- 请选择活动 --</option>
+          <% activities.forEach(function(activity) { %>
+            <option value="<%= activity.id %>" <%= String(selectedActivity) === String(activity.id) ? 'selected' : '' %>><%= activity.name %></option>
+          <% }); %>
+        </select>
+      </div>
+      <div class="col-12 col-lg-3">
+        <button class="btn btn-outline-primary w-100">查询</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<% if (selectedActivity && materials.length > 0) { %>
+  <div class="card">
+    <div class="card-header"><i class="bi bi-table"></i> 分配明细</div>
+    <div class="card-body">
+      <form method="POST" action="/admin/allocations/update" id="allocationForm">
+        <input type="hidden" name="activity_id" value="<%= selectedActivity %>">
+        <div class="table-responsive">
+          <table class="table table-bordered align-middle allocation-table">
+            <thead class="table-light">
+              <tr>
+                <th>部门/网点</th>
+                <% materials.forEach(function(material) { %>
+                  <th class="text-center material-head" data-material-id="<%= material.id %>" data-total="<%= material.total_quantity %>">
+                    <div class="fw-semibold"><%= material.name %></div>
+                    <div class="small mt-2">
+                      <div>总量：<span class="text-primary"><%= material.total_quantity %></span> <%= material.unit %></div>
+                      <div>已分配：<span class="text-danger allocated-total" data-material-id="<%= material.id %>"><%= material.total_allocated %></span></div>
+                      <div>剩余可分配：<span class="text-success remaining-total" data-material-id="<%= material.id %>"><%= material.remaining_allocable %></span></div>
+                    </div>
+                    <div class="small text-danger mt-2 allocation-warning d-none" data-warning-for="<%= material.id %>">超过剩余可分配数</div>
+                  </th>
+                <% }); %>
+              </tr>
+            </thead>
+            <tbody>
+              <% departments.forEach(function(department) { %>
+                <tr>
+                  <td><strong><%= department.name %></strong></td>
+                  <% materials.forEach(function(material) { const allocation = allocations.find(function(item) { return item.department_id === department.id && item.material_id === material.id; }) || { allocated: 0, used: 0, remaining: 0, recovered: 0 }; %>
+                    <td>
+                      <input
+                        type="number"
+                        class="form-control form-control-sm allocation-input text-center"
+                        min="0"
+                        data-material-id="<%= material.id %>"
+                        data-total="<%= material.total_quantity %>"
+                        data-used="<%= allocation.used || 0 %>"
+                        name="allocations[dept_<%= department.id %>_mat_<%= material.id %>]"
+                        value="<%= allocation.allocated || 0 %>"
+                      >
+                      <div class="small mt-2">
+                        <div>已领用：<span class="text-danger"><%= allocation.used || 0 %></span></div>
+                        <div>剩余库存：<span class="text-success"><%= allocation.remaining || 0 %></span></div>
+                        <% if (allocation.recovered) { %>
+                          <div>已回收：<span class="text-muted"><%= allocation.recovered %></span></div>
+                        <% } %>
+                      </div>
+                      <div class="small text-danger mt-1 input-warning d-none">不能小于已领用数量</div>
+                    </td>
+                  <% }); %>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+        <div class="text-end mt-3">
+          <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-check-lg"></i> 确认分配</button>
+        </div>
+      </form>
+    </div>
+  </div>
+<% } else if (selectedActivity) { %>
+  <div class="alert alert-info">该活动暂无宣传品。</div>
+<% } %>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const inputs = Array.from(document.querySelectorAll('.allocation-input'));
+  const form = document.getElementById('allocationForm');
+  if (!inputs.length || !form) return;
+
+  function refreshSummary() {
+    const grouped = {};
+    let hasError = false;
+
+    inputs.forEach(function (input) {
+      const materialId = input.dataset.materialId;
+      const value = Math.max(parseInt(input.value || '0', 10) || 0, 0);
+      const used = parseInt(input.dataset.used || '0', 10) || 0;
+      const warning = input.parentElement.querySelector('.input-warning');
+
+      if (!grouped[materialId]) grouped[materialId] = 0;
+      grouped[materialId] += value;
+
+      if (value < used) {
+        input.classList.add('is-invalid');
+        if (warning) warning.classList.remove('d-none');
+        hasError = true;
+      } else {
+        input.classList.remove('is-invalid');
+        if (warning) warning.classList.add('d-none');
+      }
+    });
+
+    document.querySelectorAll('.material-head').forEach(function (head) {
+      const materialId = head.dataset.materialId;
+      const total = parseInt(head.dataset.total || '0', 10) || 0;
+      const allocated = grouped[materialId] || 0;
+      const remaining = total - allocated;
+      const allocatedEl = head.querySelector('.allocated-total');
+      const remainingEl = head.querySelector('.remaining-total');
+      const warningEl = head.querySelector('.allocation-warning');
+
+      allocatedEl.textContent = allocated;
+      remainingEl.textContent = remaining;
+
+      if (remaining < 0) {
+        head.classList.add('allocation-overflow');
+        warningEl.classList.remove('d-none');
+        hasError = true;
+      } else {
+        head.classList.remove('allocation-overflow');
+        warningEl.classList.add('d-none');
+      }
+    });
+
+    return !hasError;
+  }
+
+  inputs.forEach(function (input) {
+    input.addEventListener('input', refreshSummary);
+  });
+
+  form.addEventListener('submit', function (event) {
+    if (!refreshSummary()) {
+      event.preventDefault();
+      alert('请先处理红色提示项后再提交。');
+    }
+  });
+
+  refreshSummary();
+});
+</script>
+
+<%- include('../partials/footer') %>
