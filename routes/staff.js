@@ -7,6 +7,18 @@ const { formatDateTime, maskCustomerName, passwordRuleError } = require('../util
 
 const router = express.Router();
 
+const managedDepartmentOrder = [
+  '公司金融业务部',
+  '个人金融业务部',
+  '机构金融业务部',
+  '普惠金融业务部',
+  '本级业务部',
+  '转塘支行',
+  '文三路支行',
+  '象山路小微企业专营支行',
+  '银马支行'
+];
+
 router.use(isAuthenticated);
 router.use((req, res, next) => {
   res.locals.query = req.query;
@@ -35,6 +47,29 @@ function getStaffActivities(departmentId) {
     WHERE da.department_id = ?
     ORDER BY a.name
   `, [departmentId]);
+}
+
+function getDepartmentOrderIndex(name) {
+  const index = managedDepartmentOrder.indexOf(name);
+  return index === -1 ? 999 : index;
+}
+
+function compareDepartmentName(a, b) {
+  const ia = getDepartmentOrderIndex(a);
+  const ib = getDepartmentOrderIndex(b);
+  if (ia !== ib) return ia - ib;
+  return String(a || '').localeCompare(String(b || ''), 'zh-CN');
+}
+
+function compareDetailRow(a, b) {
+  const typeOrder = { 分配: 0, 回收: 1, 领用: 2 };
+  const departmentCompare = compareDepartmentName(a.department_name, b.department_name);
+  if (departmentCompare !== 0) return departmentCompare;
+
+  return String(a.activity_name || '').localeCompare(String(b.activity_name || ''), 'zh-CN')
+    || String(a.material_name || '').localeCompare(String(b.material_name || ''), 'zh-CN')
+    || ((typeOrder[a.type] ?? 99) - (typeOrder[b.type] ?? 99))
+    || String(a.raw_time || '').localeCompare(String(b.raw_time || ''), 'zh-CN');
 }
 
 function getStaffInventory(departmentId, activityId) {
@@ -69,7 +104,7 @@ function buildStaffDetailRows(departmentId, activityId) {
       ur.quantity,
       ur.customer_name,
       u.name AS created_by_name,
-      ur.created_at,
+      ur.created_at AS raw_time,
       ur.remark
     FROM usage_records ur
     JOIN departments d ON ur.department_id = d.id
@@ -77,8 +112,10 @@ function buildStaffDetailRows(departmentId, activityId) {
     JOIN activities a ON m.activity_id = a.id
     JOIN users u ON ur.created_by = u.id
     WHERE ur.department_id = ? AND ur.record_type = 'usage' ${activityId ? 'AND a.id = ?' : ''}
-    ORDER BY a.name, m.name, ur.created_at DESC
-  `, activityId ? [departmentId, activityId] : [departmentId]).map((row, index) => ({
+  `, activityId ? [departmentId, activityId] : [departmentId]).map(row => ({
+    ...row,
+    type: '领用'
+  })).sort(compareDetailRow).map((row, index) => ({
     '序号': index + 1,
     '部门/网点': row.department_name,
     '活动名称': row.activity_name,
@@ -87,7 +124,7 @@ function buildStaffDetailRows(departmentId, activityId) {
     '领用数量': row.quantity,
     '领用客户': row.customer_name || '-',
     '录入员工': row.created_by_name || '-',
-    '时间': formatDateTime(row.created_at),
+    '时间': formatDateTime(row.raw_time),
     '备注': row.remark || ''
   }));
 }
@@ -265,14 +302,8 @@ router.post('/usage', (req, res) => {
 
 router.get('/history', (req, res) => {
   const departmentId = req.session.user.department_id;
-  const mode = req.query.mode === 'mine' ? 'mine' : 'department';
-  const params = [departmentId];
-  let userFilter = '';
-
-  if (mode === 'mine') {
-    userFilter = 'AND ur.created_by = ?';
-    params.push(req.session.user.id);
-  }
+  const mode = 'mine';
+  const params = [departmentId, req.session.user.id];
 
   const records = db.query(`
     SELECT a.name AS activity_name, m.name AS material_name, m.unit, ur.quantity,
@@ -281,7 +312,7 @@ router.get('/history', (req, res) => {
     JOIN materials m ON ur.material_id = m.id
     JOIN activities a ON m.activity_id = a.id
     JOIN users u ON ur.created_by = u.id
-    WHERE ur.department_id = ? ${userFilter}
+    WHERE ur.department_id = ? AND ur.created_by = ?
     ORDER BY ur.created_at DESC
   `, params).map(row => ({
     ...row,
@@ -325,37 +356,36 @@ router.get('/export/inventory', (req, res) => {
 
 router.get('/export/usage', (req, res) => {
   const departmentId = req.session.user.department_id;
-  const mineOnly = req.query.mode === 'mine';
-  const params = [departmentId];
-  let userFilter = '';
-
-  if (mineOnly) {
-    userFilter = 'AND ur.created_by = ?';
-    params.push(req.session.user.id);
-  }
+  const params = [departmentId, req.session.user.id];
 
   const department = db.get('SELECT name FROM departments WHERE id = ?', [departmentId]);
-  const data = db.query(`
-    SELECT d.name AS '部门/网点', a.name AS '活动名称', m.name AS '宣传品名称', m.unit AS '单位',
-           ur.quantity AS '领用数量', ur.customer_name AS '领用客户', u.name AS '录入员工',
-           ur.created_at AS raw_time, ur.remark AS '备注'
+  const rows = db.query(`
+    SELECT d.name AS department_name, a.name AS activity_name, m.name AS material_name, m.unit,
+           ur.quantity, ur.customer_name, u.name AS created_by_name,
+           ur.created_at AS raw_time, ur.remark, '领用' AS type
     FROM usage_records ur
     JOIN departments d ON ur.department_id = d.id
     JOIN materials m ON ur.material_id = m.id
     JOIN activities a ON m.activity_id = a.id
     JOIN users u ON ur.created_by = u.id
-    WHERE ur.department_id = ? AND ur.record_type = 'usage' ${userFilter}
-    ORDER BY ur.created_at DESC
-  `, params).map(row => ({
-    ...row,
-    时间: formatDateTime(row.raw_time),
-    raw_time: undefined
-  })).map(({ raw_time, ...rest }) => rest);
+    WHERE ur.department_id = ? AND ur.created_by = ? AND ur.record_type = 'usage'
+  `, params);
+  const data = rows.sort(compareDetailRow).map(row => ({
+    '部门/网点': row.department_name,
+    '活动名称': row.activity_name,
+    '宣传品名称': row.material_name,
+    '单位': row.unit,
+    '领用数量': row.quantity,
+    '领用客户': row.customer_name,
+    '录入员工': row.created_by_name,
+    '时间': formatDateTime(row.raw_time),
+    '备注': row.remark || ''
+  }));
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), '明细报表');
   const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-  const filename = encodeURIComponent(`${department.name}-${mineOnly ? '本人' : '本部门'}明细报表.xlsx`);
+  const filename = encodeURIComponent(`${department.name}-本人明细报表.xlsx`);
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
   res.send(buffer);

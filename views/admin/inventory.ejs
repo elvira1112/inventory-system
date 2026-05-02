@@ -9,9 +9,69 @@
       <a href="/admin/recovery?activity_id=<%= selectedActivity %>" class="btn btn-outline-primary"><i class="bi bi-arrow-counterclockwise"></i> 宣传品回收</a>
     <% } %>
     <a href="/admin/export/inventory?<%= queryString %>" class="btn btn-success"><i class="bi bi-file-earmark-excel"></i> 导出库存报表</a>
-    <a href="/admin/export/detail?<%= queryString %>" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel"></i> 导出明细报表</a>
+    <% if (user.role === 1) { %>
+      <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#detailExportModal">
+        <i class="bi bi-file-earmark-excel"></i> 导出明细报表
+      </button>
+    <% } else { %>
+      <a href="/admin/export/detail?<%= queryString %>" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel"></i> 导出明细报表</a>
+    <% } %>
   </div>
 </div>
+
+<% if (user.role === 1) { %>
+  <div class="modal fade" id="detailExportModal" tabindex="-1" aria-labelledby="detailExportModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <form class="modal-content" method="GET" action="/admin/export/detail">
+        <input type="hidden" name="activity_id" value="<%= selectedActivity || '' %>">
+        <div class="modal-header">
+          <h5 class="modal-title" id="detailExportModalLabel">选择导出范围</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+        </div>
+        <div class="modal-body">
+          <ul class="nav nav-tabs mb-3" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" id="detail-all-tab" data-bs-toggle="tab" data-bs-target="#detail-all-pane" type="button" role="tab" aria-controls="detail-all-pane" aria-selected="true">全部部门/网点</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="detail-one-tab" data-bs-toggle="tab" data-bs-target="#detail-one-pane" type="button" role="tab" aria-controls="detail-one-pane" aria-selected="false">某个部门/网点</button>
+            </li>
+          </ul>
+          <div class="tab-content">
+            <div class="tab-pane fade show active" id="detail-all-pane" role="tabpanel" aria-labelledby="detail-all-tab">
+              <input type="radio" class="btn-check" name="export_scope" id="detailScopeAll" value="all" checked>
+              <label class="btn btn-outline-primary w-100" for="detailScopeAll">导出全部部门/网点明细</label>
+            </div>
+            <div class="tab-pane fade" id="detail-one-pane" role="tabpanel" aria-labelledby="detail-one-tab">
+              <input type="radio" class="btn-check" name="export_scope" id="detailScopeOne" value="department">
+              <label class="btn btn-outline-primary w-100 mb-3" for="detailScopeOne">导出某个部门/网点明细</label>
+              <label class="form-label" for="detailDepartmentId">部门/网点</label>
+              <select class="form-select" id="detailDepartmentId" name="department_id">
+                <% allDepartments.forEach(function(department) { %>
+                  <option value="<%= department.id %>"><%= department.name %></option>
+                <% }); %>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+          <button type="submit" class="btn btn-success"><i class="bi bi-download"></i> 确定导出</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const allTab = document.getElementById('detail-all-tab');
+      const oneTab = document.getElementById('detail-one-tab');
+      const allScope = document.getElementById('detailScopeAll');
+      const oneScope = document.getElementById('detailScopeOne');
+      allTab.addEventListener('shown.bs.tab', function() { allScope.checked = true; });
+      oneTab.addEventListener('shown.bs.tab', function() { oneScope.checked = true; });
+    });
+  </script>
+<% } %>
 
 <div class="card mb-4">
   <div class="card-body">
@@ -77,7 +137,6 @@
                 <th rowspan="2">活动名称</th>
                 <th rowspan="2">宣传品名称</th>
                 <th rowspan="2">总量</th>
-                <th rowspan="2">合计已分配</th>
                 <th rowspan="2">剩余可分配</th>
                 <% departments.forEach(function(department) { %>
                   <th colspan="3" class="text-center"><%= department.name %></th>
@@ -98,7 +157,6 @@
                   <td><%= item.activity_name %></td>
                   <td><strong><%= item.material_name %></strong></td>
                   <td><%= item.total_quantity %></td>
-                  <td><span class="badge bg-primary"><%= item.allocated %></span></td>
                   <td><span class="badge bg-success"><%= item.unallocated %></span></td>
                   <% departments.forEach(function(department) { const stock = departmentStocks[item.material_id + '_' + department.name] || { allocated: 0, used: 0, remaining: 0 }; %>
                     <td><%= stock.allocated %></td>

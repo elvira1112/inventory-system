@@ -16,16 +16,15 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 const managedDepartmentOrder = [
-  '个人金融业务部',
   '公司金融业务部',
+  '个人金融业务部',
   '机构金融业务部',
   '普惠金融业务部',
   '本级业务部',
   '转塘支行',
   '文三路支行',
   '象山路小微企业专营支行',
-  '象山路微企业专营支行',
-  '钱江支行'
+  '银马支行'
 ];
 const excludedAllocationDepartments = ['风险管理部', '行长室', '综合管理部'];
 const comprehensiveDepartmentName = '综合管理部';
@@ -102,12 +101,38 @@ function getFilterDepartments(selectedDepartmentId) {
     ? base.filter(item => String(item.id) === String(selectedDepartmentId))
     : base.filter(item => !excludedAllocationDepartments.includes(item.name));
 
-  return filtered.sort((a, b) => {
-    const ia = managedDepartmentOrder.indexOf(a.name);
-    const ib = managedDepartmentOrder.indexOf(b.name);
-    if (ia !== -1 || ib !== -1) return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
-    return a.name.localeCompare(b.name, 'zh-CN');
-  });
+  return sortDepartments(filtered);
+}
+
+function getDepartmentOrderIndex(name) {
+  const index = managedDepartmentOrder.indexOf(name);
+  return index === -1 ? 999 : index;
+}
+
+function compareDepartmentName(a, b) {
+  const ia = getDepartmentOrderIndex(a);
+  const ib = getDepartmentOrderIndex(b);
+  if (ia !== ib) return ia - ib;
+  return String(a || '').localeCompare(String(b || ''), 'zh-CN');
+}
+
+function sortDepartments(departments) {
+  return departments.sort((a, b) => compareDepartmentName(a.name, b.name));
+}
+
+function getAllDepartmentsSorted() {
+  return sortDepartments(db.query('SELECT * FROM departments'));
+}
+
+function compareDetailRow(a, b) {
+  const departmentCompare = compareDepartmentName(a.department_name, b.department_name);
+  if (departmentCompare !== 0) return departmentCompare;
+
+  const typeOrder = { 分配: 0, 回收: 1, 领用: 2 };
+  return String(a.activity_name || '').localeCompare(String(b.activity_name || ''), 'zh-CN')
+    || String(a.material_name || '').localeCompare(String(b.material_name || ''), 'zh-CN')
+    || ((typeOrder[a.type] ?? 99) - (typeOrder[b.type] ?? 99))
+    || String(a.raw_time || '').localeCompare(String(b.raw_time || ''), 'zh-CN');
 }
 
 function getMaterialInventoryRows(user, filters = {}) {
@@ -190,7 +215,6 @@ function buildInventorySheetRows(user, filters = {}) {
       '活动名称': item.activity_name,
       '宣传品名称': item.material_name,
       '总量': item.total_quantity,
-      '合计已分配': item.allocated,
       '剩余可分配': item.unallocated
     };
 
@@ -245,16 +269,16 @@ function buildDetailRows(user, filters = {}) {
     LEFT JOIN departments od ON a.department_id = od.id
     JOIN departments d ON da.department_id = d.id
     WHERE ${where.join(' AND ')} AND (COALESCE(da.allocated_quantity, 0) - COALESCE(da.recovered_quantity, 0)) > 0
-    ORDER BY d.name, a.name, m.name
   `, params).map(row => ({
-    '活动负责部门': row.owner_department || '',
-    '部门/网点': row.department_name,
-    '活动名称': row.activity_name,
-    '宣传品名称': row.material_name,
-    '类型': '分配',
-    '数量': row.quantity,
-    '时间': '',
-    '备注': ''
+    owner_department: row.owner_department || '',
+    department_name: row.department_name,
+    activity_name: row.activity_name,
+    material_name: row.material_name,
+    type: '分配',
+    quantity: row.quantity,
+    raw_time: '',
+    time: '',
+    remark: ''
   }));
 
   const recoveryRows = db.query(`
@@ -272,24 +296,30 @@ function buildDetailRows(user, filters = {}) {
     LEFT JOIN departments od ON a.department_id = od.id
     JOIN departments d ON ur.department_id = d.id
     WHERE ${where.join(' AND ')} AND ur.record_type = 'recovery'
-    ORDER BY d.name, a.name, m.name, ur.created_at DESC
   `, params).map(row => ({
-    '活动负责部门': row.owner_department || '',
-    '部门/网点': row.department_name,
-    '活动名称': row.activity_name,
-    '宣传品名称': row.material_name,
-    '类型': '回收',
-    '数量': row.quantity,
-    '时间': formatDateTime(row.created_at),
-    '备注': row.remark || ''
+    owner_department: row.owner_department || '',
+    department_name: row.department_name,
+    activity_name: row.activity_name,
+    material_name: row.material_name,
+    type: '回收',
+    quantity: row.quantity,
+    raw_time: row.created_at || '',
+    time: formatDateTime(row.created_at),
+    remark: row.remark || ''
   }));
 
-  return [...allocationRows, ...recoveryRows].sort((a, b) => {
-    return `${a['部门/网点']}${a['活动名称']}${a['宣传品名称']}${a['类型']}${a['时间']}`.localeCompare(
-      `${b['部门/网点']}${b['活动名称']}${b['宣传品名称']}${b['类型']}${b['时间']}`,
-      'zh-CN'
-    );
-  });
+  return [...allocationRows, ...recoveryRows]
+    .sort(compareDetailRow)
+    .map(row => ({
+      '活动负责部门': row.owner_department || '',
+      '部门/网点': row.department_name,
+      '活动名称': row.activity_name,
+      '宣传品名称': row.material_name,
+      '类型': row.type,
+      '数量': row.quantity,
+      '时间': row.time,
+      '备注': row.remark
+    }));
 }
 
 function buildMergedSheet(rows, sheetName, mergeColumns = []) {
@@ -715,7 +745,7 @@ router.get('/inventory', (req, res) => {
   res.render('admin/inventory', {
     user: req.session.user,
     activities,
-    allDepartments: db.query('SELECT * FROM departments ORDER BY name'),
+    allDepartments: getAllDepartmentsSorted(),
     inventory,
     detailRows,
     departments,
@@ -911,7 +941,7 @@ router.get('/export/inventory', (req, res) => {
 router.get('/export/detail', (req, res) => {
   const filters = {
     activityId: req.query.activity_id || '',
-    departmentId: req.query.department_id || ''
+    departmentId: req.query.export_scope === 'all' ? '' : (req.query.department_id || '')
   };
   const data = buildDetailRows(req.session.user, filters);
   const wb = XLSX.utils.book_new();
@@ -925,29 +955,36 @@ router.get('/export/detail', (req, res) => {
 });
 
 router.get('/export/usage', (req, res) => {
-  const data = db.query(`
+  const rows = db.query(`
     SELECT
-      d.name AS '部门/网点',
-      a.name AS '活动名称',
-      m.name AS '宣传品名称',
-      m.unit AS '单位',
-      ur.quantity AS '数量',
-      ur.customer_name AS '领用客户',
-      u.name AS '录入员工',
+      d.name AS department_name,
+      a.name AS activity_name,
+      m.name AS material_name,
+      m.unit,
+      ur.quantity,
+      ur.customer_name,
+      u.name AS created_by_name,
       ur.created_at AS raw_time,
-      ur.remark AS '备注',
-      CASE ur.record_type WHEN 'recovery' THEN '回收' ELSE '领用' END AS '记录类型'
+      ur.remark,
+      CASE ur.record_type WHEN 'recovery' THEN '回收' ELSE '领用' END AS type
     FROM usage_records ur
     JOIN departments d ON ur.department_id = d.id
     JOIN materials m ON ur.material_id = m.id
     JOIN activities a ON m.activity_id = a.id
     JOIN users u ON ur.created_by = u.id
-    ORDER BY ur.created_at DESC
-  `).map(row => ({
-    ...row,
-    时间: formatDateTime(row.raw_time),
-    raw_time: undefined
-  })).map(({ raw_time, ...rest }) => rest);
+  `);
+  const data = rows.sort(compareDetailRow).map(row => ({
+    '部门/网点': row.department_name,
+    '活动名称': row.activity_name,
+    '宣传品名称': row.material_name,
+    '单位': row.unit,
+    '数量': row.quantity,
+    '领用客户': row.customer_name,
+    '录入员工': row.created_by_name,
+    '记录类型': row.type,
+    '时间': formatDateTime(row.raw_time),
+    '备注': row.remark || ''
+  }));
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), '领用明细');
