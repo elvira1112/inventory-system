@@ -8,6 +8,9 @@
       <a href="/admin/allocations?activity_id=<%= selectedActivity %>" class="btn btn-primary"><i class="bi bi-send"></i> 宣传品分配</a>
       <a href="/admin/recovery?activity_id=<%= selectedActivity %>" class="btn btn-outline-primary"><i class="bi bi-arrow-counterclockwise"></i> 宣传品回收</a>
     <% } %>
+    <% if (selectedActivity) { %>
+      <a href="/admin/export/customer-usage?activity_id=<%= selectedActivity %>" class="btn btn-outline-info"><i class="bi bi-people"></i> 导出客户领用明细</a>
+    <% } %>
     <a href="/admin/export/inventory?<%= queryString %>" class="btn btn-success"><i class="bi bi-file-earmark-excel"></i> 导出库存报表</a>
     <% if (user.role === 1) { %>
       <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#detailExportModal">
@@ -189,6 +192,7 @@
                   <th>宣传品名称</th>
                   <th>类型</th>
                   <th>数量</th>
+                  <th>客户名称</th>
                   <th>时间</th>
                   <th>备注</th>
                 </tr>
@@ -200,8 +204,9 @@
                     <td><%= row['部门/网点'] || '-' %></td>
                     <td><%= row['活动名称'] || '-' %></td>
                     <td><strong><%= row['宣传品名称'] || '-' %></strong></td>
-                    <td><span class="badge <%= row['类型'] === '回收' ? 'bg-warning text-dark' : 'bg-secondary' %>"><%= row['类型'] %></span></td>
+                    <td><span class="badge <%= row['类型'] === '回收' ? 'bg-warning text-dark' : row['类型'] === '领用' ? 'bg-info text-dark' : 'bg-secondary' %>"><%= row['类型'] %></span></td>
                     <td><%= row['数量'] %></td>
+                    <td><%= row['客户名称'] || '-' %></td>
                     <td><%= row['时间'] || '-' %></td>
                     <td><%= row['备注'] || '-' %></td>
                   </tr>

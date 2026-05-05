@@ -3,7 +3,7 @@ const XLSX = require('xlsx');
 const bcrypt = require('bcryptjs');
 const db = require('../database/init');
 const { isAuthenticated } = require('../middleware/auth');
-const { formatDateTime, maskCustomerName, passwordRuleError } = require('../utils/helpers');
+const { formatDateTime, formatDate, maskCustomerName, passwordRuleError } = require('../utils/helpers');
 
 const router = express.Router();
 
@@ -95,17 +95,35 @@ function getStaffInventory(departmentId, activityId) {
 }
 
 function buildStaffDetailRows(departmentId, activityId) {
-  return db.query(`
-    SELECT
-      d.name AS department_name,
-      a.name AS activity_name,
-      m.name AS material_name,
-      m.unit,
-      ur.quantity,
-      ur.customer_name,
-      u.name AS created_by_name,
-      ur.created_at AS raw_time,
-      ur.remark
+  // 分配行
+  const allocations = db.query(`
+    SELECT da.allocated_quantity, m.name AS material_name, m.unit,
+           a.name AS activity_name, d.name AS department_name
+    FROM department_allocations da
+    JOIN materials m ON da.material_id = m.id
+    JOIN activities a ON m.activity_id = a.id
+    JOIN departments d ON da.department_id = d.id
+    WHERE da.department_id = ? ${activityId ? 'AND a.id = ?' : ''}
+    AND da.allocated_quantity > 0
+  `, activityId ? [departmentId, activityId] : [departmentId]).map(row => ({
+    department_name: row.department_name,
+    activity_name: row.activity_name,
+    material_name: row.material_name,
+    unit: row.unit,
+    type: '分配',
+    quantity: row.allocated_quantity,
+    customer_name: '',
+    created_by_name: '',
+    raw_time: '',
+    remark: ''
+  }));
+
+  // 领用行
+  const usageRows = db.query(`
+    SELECT d.name AS department_name, a.name AS activity_name,
+           m.name AS material_name, m.unit, ur.quantity,
+           ur.customer_name, u.name AS created_by_name,
+           ur.created_at AS raw_time, ur.remark
     FROM usage_records ur
     JOIN departments d ON ur.department_id = d.id
     JOIN materials m ON ur.material_id = m.id
@@ -115,16 +133,39 @@ function buildStaffDetailRows(departmentId, activityId) {
   `, activityId ? [departmentId, activityId] : [departmentId]).map(row => ({
     ...row,
     type: '领用'
-  })).sort(compareDetailRow).map((row, index) => ({
+  }));
+
+  // 回收行
+  const recoveryRows = db.query(`
+    SELECT d.name AS department_name, a.name AS activity_name,
+           m.name AS material_name, m.unit, ur.quantity,
+           ur.customer_name, u.name AS created_by_name,
+           ur.created_at AS raw_time, ur.remark
+    FROM usage_records ur
+    JOIN departments d ON ur.department_id = d.id
+    JOIN materials m ON ur.material_id = m.id
+    JOIN activities a ON m.activity_id = a.id
+    JOIN users u ON ur.created_by = u.id
+    WHERE ur.department_id = ? AND ur.record_type = 'recovery' ${activityId ? 'AND a.id = ?' : ''}
+  `, activityId ? [departmentId, activityId] : [departmentId]).map(row => ({
+    ...row,
+    type: '回收'
+  }));
+
+  // 合并排序
+  const allRows = [...allocations, ...usageRows, ...recoveryRows].sort(compareDetailRow);
+
+  return allRows.map((row, index) => ({
     '序号': index + 1,
     '部门/网点': row.department_name,
     '活动名称': row.activity_name,
     '宣传品名称': row.material_name,
     '单位': row.unit,
-    '领用数量': row.quantity,
+    '类型': row.type,
+    '数量': row.quantity,
     '领用客户': row.customer_name || '-',
     '录入员工': row.created_by_name || '-',
-    '时间': formatDateTime(row.raw_time),
+    '时间': formatDate(row.raw_time),
     '备注': row.remark || ''
   }));
 }
@@ -317,7 +358,7 @@ router.get('/history', (req, res) => {
   `, params).map(row => ({
     ...row,
     customer_name_masked: maskCustomerName(row.customer_name),
-    created_at: formatDateTime(row.created_at)
+    created_at: formatDate(row.created_at)
   }));
 
   res.render('staff/history', {
@@ -378,7 +419,7 @@ router.get('/export/usage', (req, res) => {
     '领用数量': row.quantity,
     '领用客户': row.customer_name,
     '录入员工': row.created_by_name,
-    '时间': formatDateTime(row.raw_time),
+    '时间': formatDate(row.raw_time),
     '备注': row.remark || ''
   }));
 

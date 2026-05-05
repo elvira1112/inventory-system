@@ -19,6 +19,7 @@
             <tr>
               <th>活动名称</th>
               <th>宣传品</th>
+              <th>类型</th>
               <th>数量</th>
               <th>领用客户</th>
               <th>录入员工</th>
@@ -31,6 +32,7 @@
               <tr>
                 <td><%= record.activity_name %></td>
                 <td><strong><%= record.material_name %></strong></td>
+                <td><span class="badge bg-<%= record.record_type === 'recovery' ? 'warning' : 'info' %>"><%= record.record_type === 'recovery' ? '回收' : '领用' %></span></td>
                 <td><span class="badge bg-primary"><%= record.quantity %> <%= record.unit %></span></td>
                 <td><%= record.customer_name_masked || '-' %></td>
                 <td><%= record.created_by_name %></td>

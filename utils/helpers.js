@@ -10,6 +10,16 @@ function formatDateTime(value) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
+function formatDate(value) {
+  if (!value) return '';
+  const text = String(value);
+  const normalized = text.includes('T') ? text : text.replace(' ', 'T');
+  const date = new Date(`${normalized}+08:00`);
+  if (Number.isNaN(date.getTime())) return text;
+  const pad = n => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
 function normalizeExcelDate(value, XLSX) {
   if (!value) return '';
   if (value instanceof Date) {
@@ -64,6 +74,7 @@ function maskCustomerName(value) {
 
 module.exports = {
   formatDateTime,
+  formatDate,
   normalizeExcelDate,
   passwordRuleError,
   maskCustomerName
