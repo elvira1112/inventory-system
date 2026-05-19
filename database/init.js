@@ -136,7 +136,7 @@ function addColumnIfMissing(tableName, columnName, definition) {
 }
 
 function insertDefaultAdmin() {
-  const hashedPassword = bcrypt.hashSync('admin123', 10);
+  const hashedPassword = bcrypt.hashSync('admin123456', 10);
   db.run(`
     INSERT INTO users (username, password, name, role, department_id, must_change_password, initial_password)
     VALUES ('admin', ?, '系统管理员', 0, NULL, 0, NULL)
