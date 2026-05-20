@@ -59,15 +59,15 @@
                       <input
                         type="number"
                         class="form-control form-control-sm allocation-input text-center"
-                        min="0"
                         data-material-id="<%= material.id %>"
                         data-total="<%= material.total_quantity %>"
                         data-used="<%= allocation.used || 0 %>"
+                        data-base-allocated="<%= allocation.allocated || 0 %>"
                         name="allocations[dept_<%= department.id %>_mat_<%= material.id %>]"
-                        value="<%= allocation.allocated || 0 %>"
+                        value="0"
                       >
                       <div class="small mt-2">
-                        <div>已领用：<span class="text-danger"><%= allocation.used || 0 %></span></div>
+                        <div>已分配：<span class="text-danger"><%= allocation.allocated || 0 %></span></div>
                         <div>剩余库存：<span class="text-success"><%= allocation.remaining || 0 %></span></div>
                         <% if (allocation.recovered) { %>
                           <div>已回收：<span class="text-muted"><%= allocation.recovered %></span></div>
@@ -103,20 +103,26 @@ document.addEventListener('DOMContentLoaded', function () {
 
     inputs.forEach(function (input) {
       const materialId = input.dataset.materialId;
-      const value = Math.max(parseInt(input.value || '0', 10) || 0, 0);
+      const baseAllocated = parseInt(input.dataset.baseAllocated || '0', 10) || 0;
+      const delta = parseInt(input.value || '0', 10) || 0;
+      const effectiveAllocated = baseAllocated + delta;
       const used = parseInt(input.dataset.used || '0', 10) || 0;
       const warning = input.parentElement.querySelector('.input-warning');
 
       if (!grouped[materialId]) grouped[materialId] = 0;
-      grouped[materialId] += value;
+      grouped[materialId] += effectiveAllocated;
 
-      if (value < used) {
+      if (effectiveAllocated < used) {
         input.classList.add('is-invalid');
         if (warning) warning.classList.remove('d-none');
         hasError = true;
+      } else if (effectiveAllocated < 0) {
+        input.classList.add('is-invalid');
+        if (warning) { warning.textContent = '分配后数量不能小于0'; warning.classList.remove('d-none'); }
+        hasError = true;
       } else {
         input.classList.remove('is-invalid');
-        if (warning) warning.classList.add('d-none');
+        if (warning) { warning.textContent = '不能小于已领用数量'; warning.classList.add('d-none'); }
       }
     });
 
