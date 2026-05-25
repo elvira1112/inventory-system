@@ -13,9 +13,9 @@ const HTTPS_PORT = parseInt(process.env.HTTPS_PORT, 10) || 443;
 // SSL_KEY_PATH:  私钥文件路径（如 /etc/ssl/private/server.key）
 // SSL_CERT_PATH: 证书文件路径（如 /etc/ssl/certs/server.crt）
 // SSL_CA_PATH:   CA 证书链路径（可选）
-const SSL_KEY_PATH = process.env.SSL_KEY_PATH || '/ssl/yxwpgl.top.key';
-const SSL_CERT_PATH = process.env.SSL_CERT_PATH || '/ssl/yxwpgl.top_public.crt';
-const SSL_CA_PATH = process.env.SSL_CA_PATH || '/ssl/yxwpgl.top_chain.crt';
+const SSL_KEY_PATH = process.env.SSL_KEY_PATH || '';
+const SSL_CERT_PATH = process.env.SSL_CERT_PATH || '';
+const SSL_CA_PATH = process.env.SSL_CA_PATH || '';
 const ENABLE_HTTPS = !!(SSL_KEY_PATH && SSL_CERT_PATH);
 
 // 初始化数据库

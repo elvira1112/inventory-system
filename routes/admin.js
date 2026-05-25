@@ -128,10 +128,8 @@ function compareDetailRow(a, b) {
   const departmentCompare = compareDepartmentName(a.department_name, b.department_name);
   if (departmentCompare !== 0) return departmentCompare;
 
-  const typeOrder = { 分配: 0, 回收: 1, 领用: 2 };
   return String(a.activity_name || '').localeCompare(String(b.activity_name || ''), 'zh-CN')
     || String(a.material_name || '').localeCompare(String(b.material_name || ''), 'zh-CN')
-    || ((typeOrder[a.type] ?? 99) - (typeOrder[b.type] ?? 99))
     || String(a.raw_time || '').localeCompare(String(b.raw_time || ''), 'zh-CN');
 }
 
@@ -180,12 +178,17 @@ function getMaterialInventoryRows(user, filters = {}) {
 }
 
 function getDepartmentAllocationMap(activityId, departmentId) {
-  const params = [activityId];
-  let extraWhere = '';
+  const params = [];
+  const wheres = [];
+  if (activityId) {
+    wheres.push('m.activity_id = ?');
+    params.push(activityId);
+  }
   if (departmentId) {
-    extraWhere = 'AND d.id = ?';
+    wheres.push('d.id = ?');
     params.push(departmentId);
   }
+  const whereClause = wheres.length > 0 ? `WHERE ${wheres.join(' AND ')}` : '';
 
   const rows = db.query(`
     SELECT
@@ -199,7 +202,7 @@ function getDepartmentAllocationMap(activityId, departmentId) {
     FROM department_allocations da
     JOIN departments d ON da.department_id = d.id
     JOIN materials m ON da.material_id = m.id
-    WHERE m.activity_id = ? ${extraWhere}
+    ${whereClause}
   `, params);
 
   return Object.fromEntries(rows.map(row => [`${row.material_id}_${row.department_name}`, row]));
@@ -262,13 +265,14 @@ function buildDetailRows(user, filters = {}) {
       a.name AS activity_name,
       m.name AS material_name,
       d.name AS department_name,
-      COALESCE(da.allocated_quantity, 0) AS quantity
-    FROM department_allocations da
-    JOIN materials m ON da.material_id = m.id
+      al.quantity,
+      al.created_at
+    FROM allocation_logs al
+    JOIN materials m ON al.material_id = m.id
     JOIN activities a ON m.activity_id = a.id
     LEFT JOIN departments od ON a.department_id = od.id
-    JOIN departments d ON da.department_id = d.id
-    WHERE ${where.join(' AND ')} AND COALESCE(da.allocated_quantity, 0) > 0
+    JOIN departments d ON al.department_id = d.id
+    WHERE ${where.join(' AND ')}
   `, params).map(row => ({
     owner_department: row.owner_department || '',
     department_name: row.department_name,
@@ -276,8 +280,8 @@ function buildDetailRows(user, filters = {}) {
     material_name: row.material_name,
     type: '分配',
     quantity: row.quantity,
-    raw_time: '',
-    time: '',
+    raw_time: row.created_at || '',
+    time: formatDate(row.created_at),
     customer_name: '',
     remark: ''
   }));
@@ -769,7 +773,7 @@ router.get('/inventory', (req, res) => {
   const showData = isSuper(req.session.user) || !!selectedActivity;
   const inventory = showData ? getMaterialInventoryRows(req.session.user, { activityId: selectedActivity, departmentId: selectedDepartment }) : [];
   const detailRows = showData ? buildDetailRows(req.session.user, { activityId: selectedActivity, departmentId: selectedDepartment }) : [];
-  const departmentStocks = selectedActivity ? getDepartmentAllocationMap(selectedActivity, selectedDepartment) : {};
+  const departmentStocks = getDepartmentAllocationMap(selectedActivity, selectedDepartment);
 
   res.render('admin/inventory', {
     user: req.session.user,
@@ -854,6 +858,9 @@ router.post('/allocations/update', (req, res) => {
       const departmentId = Number(match[1]);
       const materialId = Number(match[2]);
       const delta = parseInt(value, 10) || 0;
+      if (delta < 0) {
+        return res.redirect(`/admin/allocations?activity_id=${activity_id}&error=${encodeURIComponent('不可为负值')}`);
+      }
       const existing = db.get('SELECT * FROM department_allocations WHERE department_id = ? AND material_id = ?', [departmentId, materialId]);
       const used = existing ? existing.used_quantity || 0 : 0;
       const recovered = existing ? existing.recovered_quantity || 0 : 0;
@@ -865,7 +872,7 @@ router.post('/allocations/update', (req, res) => {
         return res.redirect(`/admin/allocations?activity_id=${activity_id}&error=${encodeURIComponent(`${material ? material.name : '宣传品'}的分配数不能小于已领用数`)}`);
       }
 
-      desiredValues[key] = { departmentId, materialId, desiredAllocated, existing, recovered };
+      desiredValues[key] = { departmentId, materialId, desiredAllocated, existing, recovered, delta };
       if (materialSummary[materialId]) {
         materialSummary[materialId].total += desiredAllocated;
       }
@@ -879,11 +886,17 @@ router.post('/allocations/update', (req, res) => {
     Object.values(desiredValues).forEach(item => {
       const grossAllocated = item.desiredAllocated + item.recovered;
       if (item.existing) {
-        db.run('UPDATE department_allocations SET allocated_quantity = ? WHERE id = ?', [grossAllocated, item.existing.id]);
+        db.run("UPDATE department_allocations SET allocated_quantity = ?, updated_at = DATETIME('now', 'localtime') WHERE id = ?", [grossAllocated, item.existing.id]);
       } else if (grossAllocated > 0) {
         db.run(
-          'INSERT INTO department_allocations (department_id, material_id, allocated_quantity, used_quantity, recovered_quantity) VALUES (?, ?, ?, 0, 0)',
+          "INSERT INTO department_allocations (department_id, material_id, allocated_quantity, used_quantity, recovered_quantity, created_at, updated_at) VALUES (?, ?, ?, 0, 0, DATETIME('now', 'localtime'), DATETIME('now', 'localtime'))",
           [item.departmentId, item.materialId, grossAllocated]
+        );
+      }
+      if (item.delta > 0) {
+        db.run(
+          "INSERT INTO allocation_logs (department_id, material_id, quantity, created_by, created_at) VALUES (?, ?, ?, ?, DATETIME('now', 'localtime'))",
+          [item.departmentId, item.materialId, item.delta, req.session.user.id]
         );
       }
     });
@@ -932,7 +945,7 @@ router.post('/recovery', (req, res) => {
   const qty = parseInt(quantity, 10) || 0;
 
   if (qty <= 0) {
-    return res.redirect(`/admin/recovery?activity_id=${activity_id}&error=${encodeURIComponent('回收数量必须大于0')}`);
+    return res.redirect(`/admin/recovery?activity_id=${activity_id}&error=${encodeURIComponent('回收数量必须大于或等于1')}`);
   }
 
   const allocation = db.get(`
@@ -942,12 +955,12 @@ router.post('/recovery', (req, res) => {
   `, [department_id, material_id]);
 
   if (!allocation || allocation.remaining < qty) {
-    return res.redirect(`/admin/recovery?activity_id=${activity_id}&error=${encodeURIComponent('可回收库存不足')}`);
+    return res.redirect(`/admin/recovery?activity_id=${activity_id}&error=${encodeURIComponent('回收数量必须小于或等于当前可回收库存')}`);
   }
 
   db.run('UPDATE department_allocations SET recovered_quantity = recovered_quantity + ? WHERE id = ?', [qty, allocation.id]);
   db.run(
-    'INSERT INTO usage_records (department_id, material_id, quantity, customer_name, remark, record_type, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    "INSERT INTO usage_records (department_id, material_id, quantity, customer_name, remark, record_type, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, DATETIME('now', 'localtime'))",
     [department_id, material_id, qty, '-', remark || '回收上交', 'recovery', req.session.user.id]
   );
   res.redirect(`/admin/recovery?activity_id=${activity_id}&success=${encodeURIComponent('回收成功')}`);

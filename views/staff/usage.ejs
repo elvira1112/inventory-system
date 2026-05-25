@@ -26,6 +26,7 @@
             <div class="mb-3">
               <label class="form-label">领用数量 <span class="text-danger">*</span></label>
               <input type="number" name="quantity" id="quantityInput" class="form-control" min="1" required>
+              <div id="quantityError" class="invalid-feedback d-none"></div>
             </div>
             <div class="mb-3">
               <label class="form-label">领用客户名称 <span class="text-danger">*</span></label>
@@ -51,12 +52,60 @@ document.addEventListener('DOMContentLoaded', function() {
   const stockRemaining = document.getElementById('stockRemaining');
   const stockUnit = document.getElementById('stockUnit');
   const quantityInput = document.getElementById('quantityInput');
+  const quantityError = document.getElementById('quantityError');
+  const form = document.querySelector('form[method="POST"]');
+
   select.addEventListener('change', function() {
     const selected = this.options[this.selectedIndex];
     stockRemaining.textContent = selected.dataset.remaining || 0;
     stockUnit.textContent = selected.dataset.unit || '';
     quantityInput.max = selected.dataset.remaining || 0;
     stockInfo.style.display = this.value ? 'block' : 'none';
+    // 切换宣传品时清除错误提示
+    quantityInput.classList.remove('is-invalid');
+    quantityError.classList.add('d-none');
+  });
+
+  // 输入时实时清除错误样式
+  quantityInput.addEventListener('input', function() {
+    if (quantityInput.classList.contains('is-invalid')) {
+      quantityInput.classList.remove('is-invalid');
+      quantityError.classList.add('d-none');
+    }
+  });
+
+  // 表单提交前校验
+  form.addEventListener('submit', function(e) {
+    const qty = parseInt(quantityInput.value, 10);
+    var remaining = parseInt(stockRemaining.textContent, 10) || 0;
+
+    // 校验1：必须选择宣传品
+    if (!select.value) {
+      e.preventDefault();
+      return;
+    }
+
+    // 校验2：数值必须大于0（包括空值、非数字、负数、零）
+    if (isNaN(qty) || qty <= 0) {
+      e.preventDefault();
+      quantityInput.classList.add('is-invalid');
+      quantityError.textContent = '领用数量必须大于0';
+      quantityError.classList.remove('d-none');
+      return;
+    }
+
+    // 校验3：不能超过当前可用库存
+    if (qty > remaining) {
+      e.preventDefault();
+      quantityInput.classList.add('is-invalid');
+      quantityError.textContent = '领用数量需小于或等于当前可用库存';
+      quantityError.classList.remove('d-none');
+      return;
+    }
+
+    // 通过校验，清除错误状态
+    quantityInput.classList.remove('is-invalid');
+    quantityError.classList.add('d-none');
   });
 });
 </script>

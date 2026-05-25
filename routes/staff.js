@@ -97,24 +97,24 @@ function getStaffInventory(departmentId, activityId) {
 function buildStaffDetailRows(departmentId, activityId) {
   // 分配行
   const allocations = db.query(`
-    SELECT da.allocated_quantity, m.name AS material_name, m.unit,
-           a.name AS activity_name, d.name AS department_name
-    FROM department_allocations da
-    JOIN materials m ON da.material_id = m.id
+    SELECT al.quantity, m.name AS material_name, m.unit,
+           a.name AS activity_name, d.name AS department_name,
+           al.created_at AS raw_time
+    FROM allocation_logs al
+    JOIN materials m ON al.material_id = m.id
     JOIN activities a ON m.activity_id = a.id
-    JOIN departments d ON da.department_id = d.id
-    WHERE da.department_id = ? ${activityId ? 'AND a.id = ?' : ''}
-    AND da.allocated_quantity > 0
+    JOIN departments d ON al.department_id = d.id
+    WHERE al.department_id = ? ${activityId ? 'AND a.id = ?' : ''}
   `, activityId ? [departmentId, activityId] : [departmentId]).map(row => ({
     department_name: row.department_name,
     activity_name: row.activity_name,
     material_name: row.material_name,
     unit: row.unit,
     type: '分配',
-    quantity: row.allocated_quantity,
+    quantity: row.quantity,
     customer_name: '',
     created_by_name: '',
-    raw_time: '',
+    raw_time: row.raw_time,
     remark: ''
   }));
 
@@ -223,7 +223,7 @@ router.get('/', (req, res) => {
   `, [departmentId]).map(row => ({
     ...row,
     customer_name_masked: maskCustomerName(row.customer_name),
-    created_at: formatDateTime(row.created_at)
+    created_at: formatDate(row.created_at)
   }));
 
   res.render('staff/dashboard', {
@@ -327,11 +327,11 @@ router.post('/usage', (req, res) => {
     `, [departmentId, material_id]);
 
     if (!allocation || allocation.remaining < qty) {
-      return res.redirect('/staff/usage?error=' + encodeURIComponent('库存不足'));
+      return res.redirect('/staff/usage?error=' + encodeURIComponent('领用数量需小于或等于当前可用库存'));
     }
 
     db.run(
-      'INSERT INTO usage_records (department_id, material_id, quantity, customer_name, remark, record_type, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      "INSERT INTO usage_records (department_id, material_id, quantity, customer_name, remark, record_type, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, DATETIME('now', 'localtime'))",
       [departmentId, material_id, qty, customer_name.trim(), remark || '', 'usage', userId]
     );
     db.run('UPDATE department_allocations SET used_quantity = used_quantity + ? WHERE id = ?', [qty, allocation.id]);
