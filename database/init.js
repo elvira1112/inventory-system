@@ -101,6 +101,17 @@ function createTables() {
       FOREIGN KEY (created_by) REFERENCES users(id)
     )
   `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS allocation_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      department_id INTEGER NOT NULL,
+      material_id INTEGER NOT NULL,
+      quantity INTEGER NOT NULL,
+      created_by INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 }
 
 function migrateDatabase() {
@@ -116,6 +127,42 @@ function migrateDatabase() {
   changed = addColumnIfMissing('department_allocations', 'updated_at', 'DATETIME') || changed;
   changed = addColumnIfMissing('usage_records', 'customer_name', 'TEXT') || changed;
   changed = addColumnIfMissing('usage_records', 'record_type', "TEXT DEFAULT 'usage'") || changed;
+
+  const hasAllocationLogs = query("SELECT name FROM sqlite_master WHERE type='table' AND name='allocation_logs'").length > 0;
+  if (!hasAllocationLogs) {
+    db.run(`
+      CREATE TABLE allocation_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        department_id INTEGER NOT NULL,
+        material_id INTEGER NOT NULL,
+        quantity INTEGER NOT NULL,
+        created_by INTEGER,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    changed = true;
+  }
+
+  // 迁移旧的 department_allocations 数据到 allocation_logs
+  // 计算每个部门-宣传品组合在 allocation_logs 中已有记录的总和，与 department_allocations 的差值写入
+  const missingAllocations = query(`
+    SELECT da.department_id, da.material_id, da.allocated_quantity, da.created_at,
+           COALESCE((SELECT SUM(al.quantity) FROM allocation_logs al WHERE al.department_id = da.department_id AND al.material_id = da.material_id), 0) AS logged_total
+    FROM department_allocations da
+    WHERE da.allocated_quantity > 0
+  `);
+  missingAllocations.forEach(row => {
+    const diff = row.allocated_quantity - row.logged_total;
+    if (diff > 0) {
+      db.run(
+        "INSERT INTO allocation_logs (department_id, material_id, quantity, created_by, created_at) VALUES (?, ?, ?, NULL, COALESCE(?, CURRENT_TIMESTAMP))",
+        [row.department_id, row.material_id, diff, row.created_at]
+      );
+    }
+  });
+  if (missingAllocations.some(r => (r.allocated_quantity - r.logged_total) > 0)) {
+    changed = true;
+  }
 
   const admin = get("SELECT id, role FROM users WHERE username = 'admin'");
   if (admin && admin.role !== 0) {
