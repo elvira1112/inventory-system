@@ -65,6 +65,7 @@
                         data-base-allocated="<%= allocation.allocated || 0 %>"
                         name="allocations[dept_<%= department.id %>_mat_<%= material.id %>]"
                         value="0"
+                        min="0"
                       >
                       <div class="small mt-2">
                         <div>已分配：<span class="text-danger"><%= allocation.allocated || 0 %></span></div>
@@ -112,9 +113,13 @@ document.addEventListener('DOMContentLoaded', function () {
       if (!grouped[materialId]) grouped[materialId] = 0;
       grouped[materialId] += effectiveAllocated;
 
-      if (effectiveAllocated < used) {
+      if (delta < 0) {
         input.classList.add('is-invalid');
-        if (warning) warning.classList.remove('d-none');
+        if (warning) { warning.textContent = '不可为负值'; warning.classList.remove('d-none'); }
+        hasError = true;
+      } else if (effectiveAllocated < used) {
+        input.classList.add('is-invalid');
+        if (warning) { warning.textContent = '不能小于已领用数量'; warning.classList.remove('d-none'); }
         hasError = true;
       } else if (effectiveAllocated < 0) {
         input.classList.add('is-invalid');
@@ -122,7 +127,7 @@ document.addEventListener('DOMContentLoaded', function () {
         hasError = true;
       } else {
         input.classList.remove('is-invalid');
-        if (warning) { warning.textContent = '不能小于已领用数量'; warning.classList.add('d-none'); }
+        if (warning) warning.classList.add('d-none');
       }
     });
 

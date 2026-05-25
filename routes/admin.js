@@ -180,12 +180,17 @@ function getMaterialInventoryRows(user, filters = {}) {
 }
 
 function getDepartmentAllocationMap(activityId, departmentId) {
-  const params = [activityId];
-  let extraWhere = '';
+  const params = [];
+  const wheres = [];
+  if (activityId) {
+    wheres.push('m.activity_id = ?');
+    params.push(activityId);
+  }
   if (departmentId) {
-    extraWhere = 'AND d.id = ?';
+    wheres.push('d.id = ?');
     params.push(departmentId);
   }
+  const whereClause = wheres.length > 0 ? `WHERE ${wheres.join(' AND ')}` : '';
 
   const rows = db.query(`
     SELECT
@@ -199,7 +204,7 @@ function getDepartmentAllocationMap(activityId, departmentId) {
     FROM department_allocations da
     JOIN departments d ON da.department_id = d.id
     JOIN materials m ON da.material_id = m.id
-    WHERE m.activity_id = ? ${extraWhere}
+    ${whereClause}
   `, params);
 
   return Object.fromEntries(rows.map(row => [`${row.material_id}_${row.department_name}`, row]));
@@ -262,7 +267,9 @@ function buildDetailRows(user, filters = {}) {
       a.name AS activity_name,
       m.name AS material_name,
       d.name AS department_name,
-      COALESCE(da.allocated_quantity, 0) AS quantity
+      COALESCE(da.allocated_quantity, 0) AS quantity,
+      da.created_at,
+      da.updated_at
     FROM department_allocations da
     JOIN materials m ON da.material_id = m.id
     JOIN activities a ON m.activity_id = a.id
@@ -276,8 +283,8 @@ function buildDetailRows(user, filters = {}) {
     material_name: row.material_name,
     type: '分配',
     quantity: row.quantity,
-    raw_time: '',
-    time: '',
+    raw_time: row.updated_at || row.created_at || '',
+    time: formatDate(row.updated_at || row.created_at),
     customer_name: '',
     remark: ''
   }));
@@ -769,7 +776,7 @@ router.get('/inventory', (req, res) => {
   const showData = isSuper(req.session.user) || !!selectedActivity;
   const inventory = showData ? getMaterialInventoryRows(req.session.user, { activityId: selectedActivity, departmentId: selectedDepartment }) : [];
   const detailRows = showData ? buildDetailRows(req.session.user, { activityId: selectedActivity, departmentId: selectedDepartment }) : [];
-  const departmentStocks = selectedActivity ? getDepartmentAllocationMap(selectedActivity, selectedDepartment) : {};
+  const departmentStocks = getDepartmentAllocationMap(selectedActivity, selectedDepartment);
 
   res.render('admin/inventory', {
     user: req.session.user,
@@ -854,6 +861,9 @@ router.post('/allocations/update', (req, res) => {
       const departmentId = Number(match[1]);
       const materialId = Number(match[2]);
       const delta = parseInt(value, 10) || 0;
+      if (delta < 0) {
+        return res.redirect(`/admin/allocations?activity_id=${activity_id}&error=${encodeURIComponent('不可为负值')}`);
+      }
       const existing = db.get('SELECT * FROM department_allocations WHERE department_id = ? AND material_id = ?', [departmentId, materialId]);
       const used = existing ? existing.used_quantity || 0 : 0;
       const recovered = existing ? existing.recovered_quantity || 0 : 0;
@@ -879,10 +889,10 @@ router.post('/allocations/update', (req, res) => {
     Object.values(desiredValues).forEach(item => {
       const grossAllocated = item.desiredAllocated + item.recovered;
       if (item.existing) {
-        db.run('UPDATE department_allocations SET allocated_quantity = ? WHERE id = ?', [grossAllocated, item.existing.id]);
+        db.run("UPDATE department_allocations SET allocated_quantity = ?, updated_at = DATETIME('now', 'localtime') WHERE id = ?", [grossAllocated, item.existing.id]);
       } else if (grossAllocated > 0) {
         db.run(
-          'INSERT INTO department_allocations (department_id, material_id, allocated_quantity, used_quantity, recovered_quantity) VALUES (?, ?, ?, 0, 0)',
+          "INSERT INTO department_allocations (department_id, material_id, allocated_quantity, used_quantity, recovered_quantity, created_at, updated_at) VALUES (?, ?, ?, 0, 0, DATETIME('now', 'localtime'), DATETIME('now', 'localtime'))",
           [item.departmentId, item.materialId, grossAllocated]
         );
       }

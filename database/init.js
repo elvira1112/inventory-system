@@ -112,6 +112,8 @@ function migrateDatabase() {
   changed = addColumnIfMissing('activities', 'department_id', 'INTEGER') || changed;
   changed = addColumnIfMissing('activities', 'registration_date', 'TEXT') || changed;
   changed = addColumnIfMissing('department_allocations', 'recovered_quantity', 'INTEGER DEFAULT 0') || changed;
+  changed = addColumnIfMissing('department_allocations', 'created_at', 'DATETIME') || changed;
+  changed = addColumnIfMissing('department_allocations', 'updated_at', 'DATETIME') || changed;
   changed = addColumnIfMissing('usage_records', 'customer_name', 'TEXT') || changed;
   changed = addColumnIfMissing('usage_records', 'record_type', "TEXT DEFAULT 'usage'") || changed;
 
