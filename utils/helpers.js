@@ -39,6 +39,9 @@ function passwordRuleError(password, user) {
   if (!password || password.length < 6) {
     return '密码长度至少6位';
   }
+  if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+    return '密码必须同时包含数字和字母';
+  }
   if (/^(\d)\1{3,}$/.test(password)) {
     return '密码不能是4位及以上重复数字';
   }

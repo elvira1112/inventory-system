@@ -170,6 +170,41 @@ function migrateDatabase() {
     changed = true;
   }
 
+  // 部门名称迁移：旧名称 → 新名称
+  const deptRenameMap = [
+    ['一部', '公司金融业务部'],
+    ['二部', '个人金融业务部'],
+    ['三部', '机构金融业务部'],
+    ['四部', '普惠金融业务部'],
+  ];
+  for (const [newName, oldName] of deptRenameMap) {
+    const oldExists = get('SELECT id FROM departments WHERE name = ?', [oldName]);
+    if (oldExists) {
+      const newExists = get('SELECT id FROM departments WHERE name = ?', [newName]);
+      if (!newExists) {
+        db.run('UPDATE departments SET name = ? WHERE name = ?', [newName, oldName]);
+        changed = true;
+      }
+    }
+  }
+
+  // 活动名称迁移：旧名称 → 新名称
+  const activityRenameMap = [
+    ['本级一季度gjs存量',       '旺季贵金属业务专项营销活动（本级）'],
+    ['本级sy走访存量',          '私银客户走访营销活动（本级）'],
+    ['本级马年一季度zd存量',    '马年旺季阵地营销活动（本级）'],
+  ];
+  for (const [newName, oldName] of activityRenameMap) {
+    const oldExists = get('SELECT id FROM activities WHERE name = ?', [oldName]);
+    if (oldExists) {
+      const newExists = get('SELECT id FROM activities WHERE name = ?', [newName]);
+      if (!newExists) {
+        db.run('UPDATE activities SET name = ? WHERE name = ?', [newName, oldName]);
+        changed = true;
+      }
+    }
+  }
+
   if (changed) {
     saveDatabase();
   }
