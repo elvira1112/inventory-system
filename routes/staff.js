@@ -8,10 +8,10 @@ const { formatDateTime, formatDate, maskCustomerName, passwordRuleError } = requ
 const router = express.Router();
 
 const managedDepartmentOrder = [
-  '公司金融业务部',
-  '个人金融业务部',
-  '机构金融业务部',
-  '普惠金融业务部',
+  '一部',
+  '二部',
+  '三部',
+  '四部',
   '本级业务部',
   '转塘支行',
   '文三路支行',

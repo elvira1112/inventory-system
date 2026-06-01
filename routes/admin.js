@@ -16,10 +16,10 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 const managedDepartmentOrder = [
-  '公司金融业务部',
-  '个人金融业务部',
-  '机构金融业务部',
-  '普惠金融业务部',
+  '一部',
+  '二部',
+  '三部',
+  '四部',
   '本级业务部',
   '转塘支行',
   '文三路支行',
@@ -471,7 +471,7 @@ router.get('/users', isSuperAdmin, (req, res) => {
     SELECT u.*, d.name AS department_name
     FROM users u
     LEFT JOIN departments d ON u.department_id = d.id
-    ORDER BY u.role, u.id DESC
+    ORDER BY u.role, CASE d.name WHEN '一部' THEN 1 WHEN '二部' THEN 2 WHEN '三部' THEN 3 WHEN '四部' THEN 4 WHEN '本级' THEN 5 WHEN '转塘' THEN 6 WHEN '文三' THEN 7 WHEN '象山' THEN 8 WHEN '银马' THEN 9 ELSE 99 END, u.id DESC
   `).map(user => ({ ...user, role_name: roleName(user.role) }));
   const departments = db.query('SELECT * FROM departments ORDER BY name');
 
@@ -566,7 +566,7 @@ router.get('/departments', isSuperAdmin, (req, res) => {
     FROM departments d
     LEFT JOIN users u ON d.id = u.department_id
     GROUP BY d.id
-    ORDER BY d.name
+    ORDER BY CASE d.name WHEN '一部' THEN 1 WHEN '二部' THEN 2 WHEN '三部' THEN 3 WHEN '四部' THEN 4 WHEN '本级' THEN 5 WHEN '转塘' THEN 6 WHEN '文三' THEN 7 WHEN '象山' THEN 8 WHEN '银马' THEN 9 ELSE 99 END, d.name
   `);
 
   res.render('admin/departments', {
@@ -1103,7 +1103,7 @@ router.get('/template/:type', (req, res) => {
     data = [{ 登记日期: '2026-04-23', 活动名称: '春季促销', 宣传品名称: '宣传海报', 数量: 1000, 单位: '张' }];
     filename = 'activity-template.xlsx';
   } else if (type === 'departments') {
-    data = [{ '部门/网点': '个人金融业务部' }];
+    data = [{ '部门/网点': '二部' }];
     filename = 'department-template.xlsx';
   } else {
     return res.status(400).send('未知模板类型');
