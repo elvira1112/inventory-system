@@ -2,7 +2,7 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
   <div>
-    <h2 class="mb-1"><i class="bi bi-calendar-event"></i> <%= activity.name %></h2>
+    <h2 class="mb-1"><i class="bi bi-calendar-event"></i> <%= activity.name %><% if (activity.delete_reason) { %> <span class="text-danger">【已删除：<%= activity.delete_reason %>】</span><% } %></h2>
     <div class="text-muted">登记日期：<%= activity.registration_date || '-' %>　活动负责部门：<%= activity.department_name || '-' %></div>
   </div>
   <a href="/admin/activities" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> 返回</a>

@@ -95,7 +95,7 @@
             <option value="">全部活动</option>
             <% activities.forEach(function(activity) { %>
               <option value="<%= activity.id %>" <%= String(selectedActivity) === String(activity.id) ? 'selected' : '' %>>
-                <%= activity.department_name ? `${activity.department_name} - ` : '' %><%= activity.name %>
+                <%= activity.department_name ? `${activity.department_name} - ` : '' %><%= activity.display_name %>
               </option>
             <% }); %>
           </select>
@@ -110,7 +110,7 @@
             <option value="">请选择活动</option>
             <% activities.forEach(function(activity) { %>
               <option value="<%= activity.id %>" <%= String(selectedActivity) === String(activity.id) ? 'selected' : '' %>>
-                <%= activity.department_name ? `${activity.department_name} - ` : '' %><%= activity.name %>
+                <%= activity.department_name ? `${activity.department_name} - ` : '' %><%= activity.display_name %>
               </option>
             <% }); %>
           </select>
@@ -157,7 +157,7 @@
               <% inventory.forEach(function(item) { %>
                 <tr>
                   <td><%= item.owner_department || '-' %></td>
-                  <td><%= item.activity_name %></td>
+                  <td><%= item.activity_name_display || item.activity_name %></td>
                   <td><strong><%= item.material_name %></strong></td>
                   <td><%= item.total_quantity %></td>
                   <td><span class="badge bg-success"><%= item.unallocated %></span></td>

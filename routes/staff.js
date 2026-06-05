@@ -3,7 +3,7 @@ const XLSX = require('xlsx');
 const bcrypt = require('bcryptjs');
 const db = require('../database/init');
 const { isAuthenticated } = require('../middleware/auth');
-const { formatDateTime, formatDate, maskCustomerName, passwordRuleError } = require('../utils/helpers');
+const { formatDateTime, formatDate, maskCustomerName, maskSensitive, formatActivityDisplay, passwordRuleError } = require('../utils/helpers');
 
 const router = express.Router();
 
@@ -44,7 +44,7 @@ function getStaffActivities(departmentId) {
     FROM department_allocations da
     JOIN materials m ON da.material_id = m.id
     JOIN activities a ON m.activity_id = a.id
-    WHERE da.department_id = ?
+    WHERE da.department_id = ? AND a.deleted_at IS NULL
     ORDER BY a.name
   `, [departmentId]);
 }
@@ -78,6 +78,7 @@ function getStaffInventory(departmentId, activityId) {
       d.name AS department_name,
       a.id AS activity_id,
       a.name AS activity_name,
+      a.delete_reason,
       m.id AS material_id,
       m.name AS material_name,
       m.unit,
@@ -89,7 +90,7 @@ function getStaffInventory(departmentId, activityId) {
     JOIN departments d ON da.department_id = d.id
     JOIN materials m ON da.material_id = m.id
     JOIN activities a ON m.activity_id = a.id
-    WHERE da.department_id = ? ${activityId ? 'AND a.id = ?' : ''}
+    WHERE da.department_id = ? AND a.deleted_at IS NULL ${activityId ? 'AND a.id = ?' : ''}
     ORDER BY a.name, m.name
   `, activityId ? [departmentId, activityId] : [departmentId]);
 }
@@ -104,7 +105,7 @@ function buildStaffDetailRows(departmentId, activityId) {
     JOIN materials m ON al.material_id = m.id
     JOIN activities a ON m.activity_id = a.id
     JOIN departments d ON al.department_id = d.id
-    WHERE al.department_id = ? ${activityId ? 'AND a.id = ?' : ''}
+    WHERE al.department_id = ? AND a.deleted_at IS NULL ${activityId ? 'AND a.id = ?' : ''}
   `, activityId ? [departmentId, activityId] : [departmentId]).map(row => ({
     department_name: row.department_name,
     activity_name: row.activity_name,
@@ -129,7 +130,7 @@ function buildStaffDetailRows(departmentId, activityId) {
     JOIN materials m ON ur.material_id = m.id
     JOIN activities a ON m.activity_id = a.id
     JOIN users u ON ur.created_by = u.id
-    WHERE ur.department_id = ? AND ur.record_type = 'usage' ${activityId ? 'AND a.id = ?' : ''}
+    WHERE ur.department_id = ? AND ur.record_type = 'usage' AND a.deleted_at IS NULL ${activityId ? 'AND a.id = ?' : ''}
   `, activityId ? [departmentId, activityId] : [departmentId]).map(row => ({
     ...row,
     type: '领用'
@@ -146,7 +147,7 @@ function buildStaffDetailRows(departmentId, activityId) {
     JOIN materials m ON ur.material_id = m.id
     JOIN activities a ON m.activity_id = a.id
     JOIN users u ON ur.created_by = u.id
-    WHERE ur.department_id = ? AND ur.record_type = 'recovery' ${activityId ? 'AND a.id = ?' : ''}
+    WHERE ur.department_id = ? AND ur.record_type = 'recovery' AND a.deleted_at IS NULL ${activityId ? 'AND a.id = ?' : ''}
   `, activityId ? [departmentId, activityId] : [departmentId]).map(row => ({
     ...row,
     type: '回收'
@@ -166,7 +167,7 @@ function buildStaffDetailRows(departmentId, activityId) {
     '领用客户': row.customer_name || '-',
     '录入员工': row.created_by_name || '-',
     '时间': formatDate(row.raw_time),
-    '备注': row.remark || ''
+    '备注': maskSensitive(row.remark)
   }));
 }
 
@@ -217,12 +218,13 @@ router.get('/', (req, res) => {
     FROM usage_records ur
     JOIN materials m ON ur.material_id = m.id
     JOIN activities a ON m.activity_id = a.id
-    WHERE ur.department_id = ?
+    WHERE ur.department_id = ? AND a.deleted_at IS NULL
     ORDER BY ur.created_at DESC
     LIMIT 10
   `, [departmentId]).map(row => ({
     ...row,
     customer_name_masked: maskCustomerName(row.customer_name),
+    remark: maskSensitive(row.remark),
     created_at: formatDate(row.created_at)
   }));
 
@@ -298,7 +300,7 @@ router.get('/usage', (req, res) => {
     FROM department_allocations da
     JOIN materials m ON da.material_id = m.id
     JOIN activities a ON m.activity_id = a.id
-    WHERE da.department_id = ?
+    WHERE da.department_id = ? AND a.deleted_at IS NULL
       AND (COALESCE(da.allocated_quantity, 0) - COALESCE(da.used_quantity, 0) - COALESCE(da.recovered_quantity, 0)) > 0
     ORDER BY a.name, m.name
   `, [departmentId]);
@@ -353,11 +355,12 @@ router.get('/history', (req, res) => {
     JOIN materials m ON ur.material_id = m.id
     JOIN activities a ON m.activity_id = a.id
     JOIN users u ON ur.created_by = u.id
-    WHERE ur.department_id = ? AND ur.created_by = ?
+    WHERE ur.department_id = ? AND ur.created_by = ? AND a.deleted_at IS NULL
     ORDER BY ur.created_at DESC
   `, params).map(row => ({
     ...row,
     customer_name_masked: maskCustomerName(row.customer_name),
+    remark: maskSensitive(row.remark),
     created_at: formatDate(row.created_at)
   }));
 
@@ -375,7 +378,7 @@ router.get('/export/inventory', (req, res) => {
   const selectedActivity = req.query.activity_id || '';
   const rows = getStaffInventory(departmentId, selectedActivity).map(item => ({
     '部门/网点': item.department_name,
-    '活动名称': item.activity_name,
+    '活动名称': formatActivityDisplay(item.activity_name, item.delete_reason),
     '宣传品名称': item.material_name,
     '当前已分配': item.allocated,
     '已领用': item.used,
@@ -401,7 +404,8 @@ router.get('/export/usage', (req, res) => {
 
   const department = db.get('SELECT name FROM departments WHERE id = ?', [departmentId]);
   const rows = db.query(`
-    SELECT d.name AS department_name, a.name AS activity_name, m.name AS material_name, m.unit,
+    SELECT d.name AS department_name, a.name AS activity_name, a.delete_reason,
+           m.name AS material_name, m.unit,
            ur.quantity, ur.customer_name, u.name AS created_by_name,
            ur.created_at AS raw_time, ur.remark, '领用' AS type
     FROM usage_records ur
@@ -409,18 +413,18 @@ router.get('/export/usage', (req, res) => {
     JOIN materials m ON ur.material_id = m.id
     JOIN activities a ON m.activity_id = a.id
     JOIN users u ON ur.created_by = u.id
-    WHERE ur.department_id = ? AND ur.created_by = ? AND ur.record_type = 'usage'
+    WHERE ur.department_id = ? AND ur.created_by = ? AND ur.record_type = 'usage' AND a.deleted_at IS NULL
   `, params);
   const data = rows.sort(compareDetailRow).map(row => ({
     '部门/网点': row.department_name,
-    '活动名称': row.activity_name,
+    '活动名称': formatActivityDisplay(row.activity_name, row.delete_reason),
     '宣传品名称': row.material_name,
     '单位': row.unit,
     '领用数量': row.quantity,
     '领用客户': row.customer_name,
     '录入员工': row.created_by_name,
     '时间': formatDate(row.raw_time),
-    '备注': row.remark || ''
+    '备注': maskSensitive(row.remark)
   }));
 
   const wb = XLSX.utils.book_new();
