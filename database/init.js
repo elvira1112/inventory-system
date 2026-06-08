@@ -122,6 +122,8 @@ function migrateDatabase() {
   changed = addColumnIfMissing('users', 'last_password_hash', 'TEXT') || changed;
   changed = addColumnIfMissing('activities', 'department_id', 'INTEGER') || changed;
   changed = addColumnIfMissing('activities', 'registration_date', 'TEXT') || changed;
+  changed = addColumnIfMissing('activities', 'deleted_at', 'DATETIME') || changed;
+  changed = addColumnIfMissing('activities', 'delete_reason', 'TEXT') || changed;
   changed = addColumnIfMissing('department_allocations', 'recovered_quantity', 'INTEGER DEFAULT 0') || changed;
   changed = addColumnIfMissing('department_allocations', 'created_at', 'DATETIME') || changed;
   changed = addColumnIfMissing('department_allocations', 'updated_at', 'DATETIME') || changed;

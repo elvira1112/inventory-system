@@ -34,7 +34,8 @@
             </div>
             <div class="mb-4">
               <label class="form-label">备注</label>
-              <textarea name="remark" class="form-control" rows="3"></textarea>
+              <textarea name="remark" id="remarkInput" class="form-control" rows="3"></textarea>
+              <div id="remarkError" class="invalid-feedback d-none">输入信息涉敏，请勿输入</div>
             </div>
             <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> 提交领用</button>
           </form>
@@ -45,6 +46,23 @@
 </div>
 
 <script>
+// 敏感信息识别规则
+function containsSensitive(text) {
+  if (!text) return false;
+  // 18位身份证号码（末位可为X）
+  if (/\d{17}[\dXx]/.test(text)) return true;
+  // 提取所有连续数字串
+  var digitSeqs = text.match(/\d+/g) || [];
+  for (var i = 0; i < digitSeqs.length; i++) {
+    var len = digitSeqs[i].length;
+    if (len === 19) return true;                   // 19位银行卡号/账号
+    if (len === 12) return true;                   // 12位电话号码
+    if (len === 11 && digitSeqs[i][0] === '1') return true; // 11位手机号
+    if (len === 8) return true;                    // 8位电话号码
+  }
+  return false;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   const select = document.getElementById('materialSelect');
   if (!select) return;
@@ -53,6 +71,8 @@ document.addEventListener('DOMContentLoaded', function() {
   const stockUnit = document.getElementById('stockUnit');
   const quantityInput = document.getElementById('quantityInput');
   const quantityError = document.getElementById('quantityError');
+  const remarkInput = document.getElementById('remarkInput');
+  const remarkError = document.getElementById('remarkError');
   const form = document.querySelector('form[method="POST"]');
 
   select.addEventListener('change', function() {
@@ -73,6 +93,19 @@ document.addEventListener('DOMContentLoaded', function() {
       quantityError.classList.add('d-none');
     }
   });
+
+  // 备注输入框实时检测敏感信息
+  if (remarkInput) {
+    remarkInput.addEventListener('input', function() {
+      if (containsSensitive(this.value)) {
+        remarkInput.classList.add('is-invalid');
+        remarkError.classList.remove('d-none');
+      } else {
+        remarkInput.classList.remove('is-invalid');
+        remarkError.classList.add('d-none');
+      }
+    });
+  }
 
   // 表单提交前校验
   form.addEventListener('submit', function(e) {
@@ -100,6 +133,15 @@ document.addEventListener('DOMContentLoaded', function() {
       quantityInput.classList.add('is-invalid');
       quantityError.textContent = '领用数量需小于或等于当前可用库存';
       quantityError.classList.remove('d-none');
+      return;
+    }
+
+    // 校验4：备注不得包含敏感信息
+    if (remarkInput && containsSensitive(remarkInput.value)) {
+      e.preventDefault();
+      remarkInput.classList.add('is-invalid');
+      remarkError.classList.remove('d-none');
+      remarkInput.focus();
       return;
     }
 

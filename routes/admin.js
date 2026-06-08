@@ -5,7 +5,7 @@ const bcrypt = require('bcryptjs');
 const path = require('path');
 const db = require('../database/init');
 const { isAuthenticated, isAdmin, isSuperAdmin } = require('../middleware/auth');
-const { formatDateTime, formatDate, normalizeExcelDate, passwordRuleError } = require('../utils/helpers');
+const { formatDateTime, formatDate, normalizeExcelDate, maskSensitive, formatActivityDisplay, passwordRuleError } = require('../utils/helpers');
 
 const router = express.Router();
 
@@ -95,6 +95,14 @@ function getActivitiesForUser(user) {
   `, scope.params);
 }
 
+function getActivitiesForUserDropdown(user) {
+  const raw = getActivitiesForUser(user);
+  return raw.map(row => ({
+    ...row,
+    display_name: formatActivityDisplay(row.name, row.delete_reason)
+  }));
+}
+
 function getFilterDepartments(selectedDepartmentId) {
   const base = db.query('SELECT * FROM departments');
   const filtered = selectedDepartmentId
@@ -159,6 +167,7 @@ function getMaterialInventoryRows(user, filters = {}) {
       d.name AS owner_department,
       a.id AS activity_id,
       a.name AS activity_name,
+      a.delete_reason,
       m.id AS material_id,
       m.name AS material_name,
       m.unit,
@@ -215,7 +224,7 @@ function buildInventorySheetRows(user, filters = {}) {
   return materials.map(item => {
     const row = {
       '活动负责部门': item.owner_department || '',
-      '活动名称': item.activity_name,
+      '活动名称': formatActivityDisplay(item.activity_name, item.delete_reason),
       '宣传品名称': item.material_name,
       '总量': item.total_quantity,
       '剩余可分配': item.unallocated
@@ -263,6 +272,7 @@ function buildDetailRows(user, filters = {}) {
     SELECT
       od.name AS owner_department,
       a.name AS activity_name,
+      a.delete_reason,
       m.name AS material_name,
       d.name AS department_name,
       al.quantity,
@@ -277,6 +287,7 @@ function buildDetailRows(user, filters = {}) {
     owner_department: row.owner_department || '',
     department_name: row.department_name,
     activity_name: row.activity_name,
+    delete_reason: row.delete_reason,
     material_name: row.material_name,
     type: '分配',
     quantity: row.quantity,
@@ -290,6 +301,7 @@ function buildDetailRows(user, filters = {}) {
     SELECT
       od.name AS owner_department,
       a.name AS activity_name,
+      a.delete_reason,
       m.name AS material_name,
       d.name AS department_name,
       ur.quantity,
@@ -306,19 +318,21 @@ function buildDetailRows(user, filters = {}) {
     owner_department: row.owner_department || '',
     department_name: row.department_name,
     activity_name: row.activity_name,
+    delete_reason: row.delete_reason,
     material_name: row.material_name,
     type: '领用',
     quantity: row.quantity,
     raw_time: row.created_at || '',
     time: formatDate(row.created_at),
     customer_name: row.customer_name || '',
-    remark: row.remark || ''
+    remark: maskSensitive(row.remark)
   }));
 
   const recoveryRows = db.query(`
     SELECT
       od.name AS owner_department,
       a.name AS activity_name,
+      a.delete_reason,
       m.name AS material_name,
       d.name AS department_name,
       ur.quantity,
@@ -334,13 +348,14 @@ function buildDetailRows(user, filters = {}) {
     owner_department: row.owner_department || '',
     department_name: row.department_name,
     activity_name: row.activity_name,
+    delete_reason: row.delete_reason,
     material_name: row.material_name,
     type: '回收',
     quantity: row.quantity,
     raw_time: row.created_at || '',
     time: formatDate(row.created_at),
     customer_name: '',
-    remark: row.remark || ''
+    remark: maskSensitive(row.remark)
   }));
 
   return [...allocationRows, ...usageRows, ...recoveryRows]
@@ -348,13 +363,13 @@ function buildDetailRows(user, filters = {}) {
     .map(row => ({
       '活动负责部门': row.owner_department || '',
       '部门/网点': row.department_name,
-      '活动名称': row.activity_name,
+      '活动名称': formatActivityDisplay(row.activity_name, row.delete_reason),
       '宣传品名称': row.material_name,
       '类型': row.type,
       '数量': row.quantity,
       '客户名称': row.customer_name || '',
       '时间': row.time,
-      '备注': row.remark
+      '备注': maskSensitive(row.remark)
     }));
 }
 
@@ -635,6 +650,7 @@ router.get('/activities', (req, res) => {
     ORDER BY a.id DESC
   `, scope.params).map(activity => ({
     ...activity,
+    display_name: formatActivityDisplay(activity.name, activity.delete_reason),
     can_delete: isComprehensivePrimary(req.session.user) && Number(activity.distributed_count || 0) === 0
   }));
 
@@ -699,6 +715,61 @@ router.post('/activities/import', upload.single('file'), (req, res) => {
   }
 });
 
+// 软删除活动页面（一级人员）
+router.get('/activities/delete', (req, res) => {
+  const user = req.session.user;
+  if (user.role !== 1) {
+    return res.redirect('/admin/activities?error=' + encodeURIComponent('仅一级人员可操作活动删除'));
+  }
+  const scope = userScopeWhere(user, 'a');
+  const activities = db.query(`
+    SELECT a.id, a.name
+    FROM activities a
+    WHERE ${scope.where} AND a.deleted_at IS NULL
+    ORDER BY a.name
+  `, scope.params);
+
+  res.render('admin/activity-delete', {
+    user,
+    activities,
+    currentPage: 'activities'
+  });
+});
+
+// 软删除活动提交（一级人员）
+router.post('/activities/delete', (req, res) => {
+  const user = req.session.user;
+  if (user.role !== 1) {
+    return res.redirect('/admin/activities?error=' + encodeURIComponent('仅一级人员可操作活动删除'));
+  }
+
+  const { activity_id, delete_reason } = req.body;
+  if (!activity_id || !delete_reason || !delete_reason.trim()) {
+    return res.redirect('/admin/activities/delete?error=' + encodeURIComponent('请填写完整信息'));
+  }
+
+  const scope = userScopeWhere(user, 'a');
+  const activity = db.get(
+    `SELECT a.* FROM activities a WHERE a.id = ? AND ${scope.where}`,
+    [activity_id, ...scope.params]
+  );
+
+  if (!activity) {
+    return res.redirect('/admin/activities/delete?error=' + encodeURIComponent('活动不存在或无权操作'));
+  }
+
+  if (activity.deleted_at) {
+    return res.redirect('/admin/activities/delete?error=' + encodeURIComponent('该活动已被删除'));
+  }
+
+  db.run(
+    "UPDATE activities SET deleted_at = DATETIME('now', 'localtime'), delete_reason = ? WHERE id = ?",
+    [delete_reason.trim(), activity_id]
+  );
+
+  res.redirect('/admin/activities?success=' + encodeURIComponent('活动「' + activity.name + '」已删除'));
+});
+
 router.post('/activities/delete/:id', (req, res) => {
   if (!isComprehensivePrimary(req.session.user)) {
     return res.redirect('/admin/activities?error=' + encodeURIComponent('只有综合管理部的一级人员可删除活动'));
@@ -761,17 +832,23 @@ router.get('/activities/:id', (req, res) => {
 router.get('/inventory', (req, res) => {
   const selectedActivity = req.query.activity_id || '';
   const selectedDepartment = req.query.department_id || '';
-  const activities = isSuper(req.session.user)
+  const activities = (isSuper(req.session.user)
     ? db.query(`
-        SELECT a.id, a.name, d.name AS department_name
+        SELECT a.id, a.name, a.delete_reason, d.name AS department_name
         FROM activities a
         LEFT JOIN departments d ON a.department_id = d.id
         ORDER BY a.name
       `)
-    : getActivitiesForUser(req.session.user);
+    : getActivitiesForUser(req.session.user)).map(row => ({
+      ...row,
+      display_name: formatActivityDisplay(row.name, row.delete_reason)
+    }));
   const departments = getFilterDepartments(selectedDepartment);
   const showData = isSuper(req.session.user) || !!selectedActivity;
-  const inventory = showData ? getMaterialInventoryRows(req.session.user, { activityId: selectedActivity, departmentId: selectedDepartment }) : [];
+  const inventory = showData ? getMaterialInventoryRows(req.session.user, { activityId: selectedActivity, departmentId: selectedDepartment }).map(row => ({
+    ...row,
+    activity_name_display: formatActivityDisplay(row.activity_name, row.delete_reason)
+  })) : [];
   const detailRows = showData ? buildDetailRows(req.session.user, { activityId: selectedActivity, departmentId: selectedDepartment }) : [];
   const departmentStocks = getDepartmentAllocationMap(selectedActivity, selectedDepartment);
 
@@ -790,7 +867,7 @@ router.get('/inventory', (req, res) => {
 });
 
 router.get('/allocations', (req, res) => {
-  const activities = getActivitiesForUser(req.session.user);
+  const activities = getActivitiesForUserDropdown(req.session.user);
   const departments = getFilterDepartments();
   const activityId = req.query.activity_id || '';
   let materials = [];
@@ -909,7 +986,7 @@ router.post('/allocations/update', (req, res) => {
 
 router.get('/recovery', (req, res) => {
   const activityId = req.query.activity_id || '';
-  const activities = getActivitiesForUser(req.session.user);
+  const activities = getActivitiesForUserDropdown(req.session.user);
   const departments = getFilterDepartments();
   let materials = [];
 
@@ -1013,6 +1090,7 @@ router.get('/export/customer-usage', (req, res) => {
     SELECT
       d.name AS department_name,
       a.name AS activity_name,
+      a.delete_reason,
       m.name AS material_name,
       m.unit,
       ur.quantity,
@@ -1031,14 +1109,14 @@ router.get('/export/customer-usage', (req, res) => {
 
   const data = rows.map(row => ({
     '部门/网点': row.department_name,
-    '活动名称': row.activity_name,
+    '活动名称': formatActivityDisplay(row.activity_name, row.delete_reason),
     '宣传品名称': row.material_name,
     '单位': row.unit,
     '领用数量': row.quantity,
     '客户名称': row.customer_name || '',
     '录入员工': row.created_by_name,
     '领用时间': formatDate(row.created_at),
-    '备注': row.remark || ''
+    '备注': maskSensitive(row.remark)
   }));
 
   const wb = XLSX.utils.book_new();
@@ -1055,6 +1133,7 @@ router.get('/export/usage', (req, res) => {
     SELECT
       d.name AS department_name,
       a.name AS activity_name,
+      a.delete_reason,
       m.name AS material_name,
       m.unit,
       ur.quantity,
@@ -1071,7 +1150,7 @@ router.get('/export/usage', (req, res) => {
   `);
   const data = rows.sort(compareDetailRow).map(row => ({
     '部门/网点': row.department_name,
-    '活动名称': row.activity_name,
+    '活动名称': formatActivityDisplay(row.activity_name, row.delete_reason),
     '宣传品名称': row.material_name,
     '单位': row.unit,
     '数量': row.quantity,
@@ -1079,7 +1158,7 @@ router.get('/export/usage', (req, res) => {
     '录入员工': row.created_by_name,
     '记录类型': row.type,
     '时间': formatDate(row.raw_time),
-    '备注': row.remark || ''
+    '备注': maskSensitive(row.remark)
   }));
 
   const wb = XLSX.utils.book_new();

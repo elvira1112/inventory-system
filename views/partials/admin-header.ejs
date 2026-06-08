@@ -38,7 +38,7 @@
               </a>
             </li>
           <% } %>
-          <% if (user.role === 1) { %>
+          <% if (user.role === 0 || user.role === 1) { %>
             <li class="nav-item">
               <a class="nav-link <%= currentPage === 'activities' ? 'active' : '' %>" href="/admin/activities">
                 <i class="bi bi-calendar-event"></i> 活动管理

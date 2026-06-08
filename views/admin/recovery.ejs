@@ -15,7 +15,7 @@
           <select name="activity_id" class="form-select" onchange="this.form.submit()">
             <option value="">-- 请选择活动 --</option>
             <% activities.forEach(function(a) { %>
-              <option value="<%= a.id %>" <%= selectedActivity == a.id ? 'selected' : '' %>><%= a.name %></option>
+              <option value="<%= a.id %>" <%= selectedActivity == a.id ? 'selected' : '' %>><%= a.display_name %></option>
             <% }); %>
           </select>
         </form>

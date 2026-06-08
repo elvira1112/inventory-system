@@ -2,9 +2,15 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
   <h2><i class="bi bi-calendar-event"></i> 活动管理</h2>
-  <a href="/admin/template/activities" class="btn btn-outline-secondary"><i class="bi bi-download"></i> 下载模板</a>
+  <div class="d-flex gap-2">
+    <% if (user.role === 1) { %>
+      <a href="/admin/activities/delete" class="btn btn-outline-danger"><i class="bi bi-trash"></i> 活动删除</a>
+    <% } %>
+    <a href="/admin/template/activities" class="btn btn-outline-secondary"><i class="bi bi-download"></i> 下载模板</a>
+  </div>
 </div>
 
+<% if (user.role !== 0) { %>
 <div class="card mb-4">
   <div class="card-header"><i class="bi bi-upload"></i> 导入活动与宣传品</div>
   <div class="card-body">
@@ -20,6 +26,7 @@
     </form>
   </div>
 </div>
+<% } %>
 
 <div class="card">
   <div class="card-header"><i class="bi bi-list"></i> 活动列表</div>
@@ -47,7 +54,7 @@
               <tr>
                 <td><%= activity.registration_date || '-' %></td>
                 <td><%= activity.department_name || '-' %></td>
-                <td><strong><%= activity.name %></strong></td>
+                <td><strong><%= activity.display_name %></strong><% if (activity.delete_reason) { %> <span class="badge bg-danger">已删除</span><% } %></td>
                 <td><span class="badge bg-primary"><%= activity.material_count %> 类</span></td>
                 <td><%= activity.total_items %></td>
                 <td>
