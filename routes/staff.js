@@ -3,7 +3,7 @@ const XLSX = require('xlsx');
 const bcrypt = require('bcryptjs');
 const db = require('../database/init');
 const { isAuthenticated } = require('../middleware/auth');
-const { formatDateTime, formatDate, maskCustomerName, maskSensitive, formatActivityDisplay, passwordRuleError } = require('../utils/helpers');
+const { formatDateTime, formatDate, maskCustomerName, maskSensitive, formatActivityDisplay, passwordRuleError, beijingDateString, buildDateGroups, isValidDateString } = require('../utils/helpers');
 
 const router = express.Router();
 
@@ -124,7 +124,7 @@ function buildStaffDetailRows(departmentId, activityId) {
     SELECT d.name AS department_name, a.name AS activity_name,
            m.name AS material_name, m.unit, ur.quantity,
            ur.customer_name, u.name AS created_by_name,
-           ur.created_at AS raw_time, ur.remark
+           ur.created_at AS raw_time, ur.usage_date, ur.remark
     FROM usage_records ur
     JOIN departments d ON ur.department_id = d.id
     JOIN materials m ON ur.material_id = m.id
@@ -166,6 +166,7 @@ function buildStaffDetailRows(departmentId, activityId) {
     '数量': row.quantity,
     '领用客户': row.customer_name || '-',
     '录入员工': row.created_by_name || '-',
+    '领用时间': row.usage_date || (row.type === '领用' ? formatDate(row.raw_time) : '-'),
     '时间': formatDate(row.raw_time),
     '备注': maskSensitive(row.remark)
   }));
@@ -214,18 +215,19 @@ router.get('/', (req, res) => {
   const inventory = getStaffInventory(departmentId).slice(0, 8);
   const recentUsage = db.query(`
     SELECT a.name AS activity_name, m.name AS material_name, m.unit, ur.quantity,
-           ur.customer_name, ur.remark, ur.created_at, ur.record_type
+           ur.customer_name, ur.remark, ur.created_at, ur.usage_date, ur.record_type
     FROM usage_records ur
     JOIN materials m ON ur.material_id = m.id
     JOIN activities a ON m.activity_id = a.id
     WHERE ur.department_id = ? AND a.deleted_at IS NULL
-    ORDER BY ur.created_at DESC
+    ORDER BY COALESCE(ur.usage_date, DATE(ur.created_at)) DESC, ur.created_at DESC
     LIMIT 10
   `, [departmentId]).map(row => ({
     ...row,
     customer_name_masked: maskCustomerName(row.customer_name),
     remark: maskSensitive(row.remark),
-    created_at: formatDate(row.created_at)
+    created_at: formatDate(row.created_at),
+    usage_date: row.usage_date || formatDate(row.created_at)
   }));
 
   res.render('staff/dashboard', {
@@ -305,11 +307,20 @@ router.get('/usage', (req, res) => {
     ORDER BY a.name, m.name
   `, [departmentId]);
 
-  res.render('staff/usage', { user: req.session.user, materials, currentPage: 'usage' });
+  const usageDateGroups = buildDateGroups(12);
+  const usageDateDefault = beijingDateString();
+
+  res.render('staff/usage', {
+    user: req.session.user,
+    materials,
+    usageDateGroups,
+    usageDateDefault,
+    currentPage: 'usage'
+  });
 });
 
 router.post('/usage', (req, res) => {
-  const { material_id, quantity, customer_name, remark } = req.body;
+  const { material_id, quantity, customer_name, remark, usage_date } = req.body;
   const departmentId = req.session.user.department_id;
   const userId = req.session.user.id;
   const qty = parseInt(quantity, 10) || 0;
@@ -319,6 +330,12 @@ router.post('/usage', (req, res) => {
   }
   if (!customer_name || !customer_name.trim()) {
     return res.redirect('/staff/usage?error=' + encodeURIComponent('请填写领用客户名称'));
+  }
+
+  const activityDate = isValidDateString(usage_date) ? usage_date : beijingDateString();
+  const today = beijingDateString();
+  if (activityDate > today) {
+    return res.redirect('/staff/usage?error=' + encodeURIComponent('领用时间不能晚于今天'));
   }
 
   try {
@@ -333,8 +350,8 @@ router.post('/usage', (req, res) => {
     }
 
     db.run(
-      "INSERT INTO usage_records (department_id, material_id, quantity, customer_name, remark, record_type, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, DATETIME('now', 'localtime'))",
-      [departmentId, material_id, qty, customer_name.trim(), remark || '', 'usage', userId]
+      "INSERT INTO usage_records (department_id, material_id, quantity, customer_name, remark, usage_date, record_type, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, DATETIME('now', 'localtime'))",
+      [departmentId, material_id, qty, customer_name.trim(), remark || '', activityDate, 'usage', userId]
     );
     db.run('UPDATE department_allocations SET used_quantity = used_quantity + ? WHERE id = ?', [qty, allocation.id]);
     res.redirect('/staff/usage?success=' + encodeURIComponent('领用记录添加成功'));
@@ -350,18 +367,20 @@ router.get('/history', (req, res) => {
 
   const records = db.query(`
     SELECT a.name AS activity_name, m.name AS material_name, m.unit, ur.quantity,
-           ur.customer_name, ur.remark, u.name AS created_by_name, ur.created_at, ur.record_type
+           ur.customer_name, ur.remark, u.name AS created_by_name, ur.created_at, ur.record_type,
+           ur.usage_date
     FROM usage_records ur
     JOIN materials m ON ur.material_id = m.id
     JOIN activities a ON m.activity_id = a.id
     JOIN users u ON ur.created_by = u.id
     WHERE ur.department_id = ? AND ur.created_by = ? AND a.deleted_at IS NULL
-    ORDER BY ur.created_at DESC
+    ORDER BY COALESCE(ur.usage_date, DATE(ur.created_at)) DESC, ur.created_at DESC
   `, params).map(row => ({
     ...row,
     customer_name_masked: maskCustomerName(row.customer_name),
     remark: maskSensitive(row.remark),
-    created_at: formatDate(row.created_at)
+    created_at: formatDate(row.created_at),
+    usage_date: row.usage_date || formatDate(row.created_at)
   }));
 
   res.render('staff/history', {
@@ -407,7 +426,7 @@ router.get('/export/usage', (req, res) => {
     SELECT d.name AS department_name, a.name AS activity_name, a.delete_reason,
            m.name AS material_name, m.unit,
            ur.quantity, ur.customer_name, u.name AS created_by_name,
-           ur.created_at AS raw_time, ur.remark, '领用' AS type
+           ur.created_at AS raw_time, ur.usage_date, ur.remark, '领用' AS type
     FROM usage_records ur
     JOIN departments d ON ur.department_id = d.id
     JOIN materials m ON ur.material_id = m.id
@@ -423,6 +442,7 @@ router.get('/export/usage', (req, res) => {
     '领用数量': row.quantity,
     '领用客户': row.customer_name,
     '录入员工': row.created_by_name,
+    '领用时间': row.usage_date || formatDate(row.raw_time),
     '时间': formatDate(row.raw_time),
     '备注': maskSensitive(row.remark)
   }));

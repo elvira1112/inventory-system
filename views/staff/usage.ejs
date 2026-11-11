@@ -32,10 +32,28 @@
               <label class="form-label">领用客户名称 <span class="text-danger">*</span></label>
               <input type="text" name="customer_name" class="form-control" required>
             </div>
+            <div class="mb-3">
+              <label class="form-label">领用时间 <span class="text-danger">*</span></label>
+              <select name="usage_date" id="usageDateSelect" class="form-select" required>
+                <% usageDateGroups.forEach(function(group) { %>
+                  <optgroup label="<%= group.label %>">
+                    <% group.dates.slice().reverse().forEach(function(d) { %>
+                      <option value="<%= d %>" <%= d === usageDateDefault ? 'selected' : '' %>><%= d %></option>
+                    <% }); %>
+                  </optgroup>
+                <% }); %>
+              </select>
+            </div>
             <div class="mb-4">
               <label class="form-label">备注</label>
               <textarea name="remark" id="remarkInput" class="form-control" rows="3"></textarea>
               <div id="remarkError" class="invalid-feedback d-none">输入信息涉敏，请勿输入</div>
+            </div>
+            <div class="text-danger mb-3">
+              <div class="fw-bold">提醒：</div>
+              <div>1、“领用数量”必须逐份填写。</div>
+              <div>2、“领用客户名称”必须填写客户全名。</div>
+              <div>3、“领用时间”请选择客户实际领用日期。</div>
             </div>
             <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> 提交领用</button>
           </form>
