@@ -193,6 +193,7 @@
                   <th>类型</th>
                   <th>数量</th>
                   <th>客户名称</th>
+                  <th>领用时间</th>
                   <th>时间</th>
                   <th>备注</th>
                 </tr>
@@ -207,6 +208,7 @@
                     <td><span class="badge <%= row['类型'] === '回收' ? 'bg-warning text-dark' : row['类型'] === '领用' ? 'bg-info text-dark' : 'bg-secondary' %>"><%= row['类型'] %></span></td>
                     <td><%= row['数量'] %></td>
                     <td><%= row['客户名称'] || '-' %></td>
+                    <td><%= row['领用时间'] || '-' %></td>
                     <td><%= row['时间'] || '-' %></td>
                     <td><%= row['备注'] || '-' %></td>
                   </tr>

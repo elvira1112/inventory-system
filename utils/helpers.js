@@ -114,6 +114,73 @@ function formatActivityDisplay(name, deleteReason) {
   return `${name} 【已删除：${deleteReason}】`;
 }
 
+/**
+ * 获取北京时间（UTC+8）的日期字符串 YYYY-MM-DD
+ */
+function beijingDateString(date = new Date()) {
+  const beijing = new Date(date.getTime() + 8 * 60 * 60 * 1000);
+  const pad = n => String(n).padStart(2, '0');
+  return `${beijing.getUTCFullYear()}-${pad(beijing.getUTCMonth() + 1)}-${pad(beijing.getUTCDate())}`;
+}
+
+/**
+ * 生成指定月份（默认当月）的自然日日期列表，格式 YYYY-MM-DD
+ */
+function buildMonthDateOptions(date = new Date()) {
+  const beijing = new Date(date.getTime() + 8 * 60 * 60 * 1000);
+  const year = beijing.getUTCFullYear();
+  const month = beijing.getUTCMonth();
+  const days = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  const pad = n => String(n).padStart(2, '0');
+  const list = [];
+  for (let d = 1; d <= days; d++) {
+    list.push(`${year}-${pad(month + 1)}-${pad(d)}`);
+  }
+  return list;
+}
+
+/**
+ * 校验日期字符串是否为合法的 YYYY-MM-DD
+ */
+function isValidDateString(value) {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+/**
+ * 生成跨月日期分组（默认最近 12 个月，含当月，倒序），
+ * 每个分组包含 month(YYYY-MM)、label(YYYY年MM月)、dates(日期数组，正序)
+ * 当月只生成到今天（不允许未来日期）
+ */
+function buildDateGroups(monthCount = 12, date = new Date()) {
+  const beijing = new Date(date.getTime() + 8 * 60 * 60 * 1000);
+  const todayYear = beijing.getUTCFullYear();
+  const todayMonth = beijing.getUTCMonth();
+  const todayDay = beijing.getUTCDate();
+  const pad = n => String(n).padStart(2, '0');
+  const groups = [];
+
+  for (let offset = 0; offset < monthCount; offset++) {
+    const cursor = new Date(Date.UTC(todayYear, todayMonth - offset, 1));
+    const year = cursor.getUTCFullYear();
+    const month = cursor.getUTCMonth();
+    const isCurrentMonth = offset === 0;
+    const days = isCurrentMonth ? todayDay : new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+
+    const dates = [];
+    for (let d = 1; d <= days; d++) {
+      dates.push(`${year}-${pad(month + 1)}-${pad(d)}`);
+    }
+
+    groups.push({
+      month: `${year}-${pad(month + 1)}`,
+      label: `${year}年${pad(month + 1)}月`,
+      dates
+    });
+  }
+
+  return groups;
+}
+
 module.exports = {
   formatDateTime,
   formatDate,
@@ -121,5 +188,9 @@ module.exports = {
   passwordRuleError,
   maskCustomerName,
   maskSensitive,
-  formatActivityDisplay
+  formatActivityDisplay,
+  beijingDateString,
+  buildMonthDateOptions,
+  buildDateGroups,
+  isValidDateString
 };

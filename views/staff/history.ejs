@@ -23,7 +23,8 @@
               <th>数量</th>
               <th>领用客户</th>
               <th>录入员工</th>
-              <th>时间</th>
+              <th>领用时间</th>
+              <th>录入时间</th>
               <th>备注</th>
             </tr>
           </thead>
@@ -36,6 +37,7 @@
                 <td><span class="badge bg-primary"><%= record.quantity %> <%= record.unit %></span></td>
                 <td><%= record.customer_name_masked || '-' %></td>
                 <td><%= record.created_by_name %></td>
+                <td><%= record.usage_date || '-' %></td>
                 <td><%= record.created_at %></td>
                 <td><%= record.remark || '-' %></td>
               </tr>

@@ -5,7 +5,7 @@ const bcrypt = require('bcryptjs');
 const path = require('path');
 const db = require('../database/init');
 const { isAuthenticated, isAdmin, isSuperAdmin } = require('../middleware/auth');
-const { formatDateTime, formatDate, normalizeExcelDate, maskSensitive, formatActivityDisplay, passwordRuleError } = require('../utils/helpers');
+const { formatDateTime, formatDate, normalizeExcelDate, maskSensitive, maskCustomerName, formatActivityDisplay, passwordRuleError } = require('../utils/helpers');
 
 const router = express.Router();
 
@@ -141,6 +141,14 @@ function compareDetailRow(a, b) {
     || String(a.raw_time || '').localeCompare(String(b.raw_time || ''), 'zh-CN');
 }
 
+// 明细报表排序：按领用时间倒序（越近越靠上），其次录入时间倒序
+function compareDetailRowByUsageDate(a, b) {
+  const dateCompare = String(b.usage_date || b.time || '').localeCompare(String(a.usage_date || a.time || ''), 'zh-CN');
+  if (dateCompare !== 0) return dateCompare;
+
+  return String(b.raw_time || '').localeCompare(String(a.raw_time || ''), 'zh-CN');
+}
+
 function getMaterialInventoryRows(user, filters = {}) {
   const scope = userScopeWhere(user, 'a');
   const params = [...scope.params];
@@ -253,7 +261,8 @@ function buildInventorySheetRows(user, filters = {}) {
   });
 }
 
-function buildDetailRows(user, filters = {}) {
+function buildDetailRows(user, filters = {}, options = {}) {
+  const maskCustomer = options.maskCustomer === true;
   const scope = userScopeWhere(user, 'a');
   const params = [...scope.params];
   const where = [`${scope.where}`];
@@ -307,6 +316,7 @@ function buildDetailRows(user, filters = {}) {
       ur.quantity,
       ur.customer_name,
       ur.created_at,
+      ur.usage_date,
       ur.remark
     FROM usage_records ur
     JOIN materials m ON ur.material_id = m.id
@@ -324,6 +334,7 @@ function buildDetailRows(user, filters = {}) {
     quantity: row.quantity,
     raw_time: row.created_at || '',
     time: formatDate(row.created_at),
+    usage_date: row.usage_date || formatDate(row.created_at),
     customer_name: row.customer_name || '',
     remark: maskSensitive(row.remark)
   }));
@@ -359,7 +370,7 @@ function buildDetailRows(user, filters = {}) {
   }));
 
   return [...allocationRows, ...usageRows, ...recoveryRows]
-    .sort(compareDetailRow)
+    .sort(compareDetailRowByUsageDate)
     .map(row => ({
       '活动负责部门': row.owner_department || '',
       '部门/网点': row.department_name,
@@ -367,7 +378,8 @@ function buildDetailRows(user, filters = {}) {
       '宣传品名称': row.material_name,
       '类型': row.type,
       '数量': row.quantity,
-      '客户名称': row.customer_name || '',
+      '客户名称': maskCustomer ? (maskCustomerName(row.customer_name) || '') : (row.customer_name || ''),
+      '领用时间': row.usage_date || '',
       '时间': row.time,
       '备注': maskSensitive(row.remark)
     }));
@@ -849,7 +861,7 @@ router.get('/inventory', (req, res) => {
     ...row,
     activity_name_display: formatActivityDisplay(row.activity_name, row.delete_reason)
   })) : [];
-  const detailRows = showData ? buildDetailRows(req.session.user, { activityId: selectedActivity, departmentId: selectedDepartment }) : [];
+  const detailRows = showData ? buildDetailRows(req.session.user, { activityId: selectedActivity, departmentId: selectedDepartment }, { maskCustomer: true }) : [];
   const departmentStocks = getDepartmentAllocationMap(selectedActivity, selectedDepartment);
 
   res.render('admin/inventory', {
@@ -1097,6 +1109,7 @@ router.get('/export/customer-usage', (req, res) => {
       ur.customer_name,
       u.name AS created_by_name,
       ur.created_at,
+      ur.usage_date,
       ur.remark
     FROM usage_records ur
     JOIN departments d ON ur.department_id = d.id
@@ -1104,7 +1117,7 @@ router.get('/export/customer-usage', (req, res) => {
     JOIN activities a ON m.activity_id = a.id
     JOIN users u ON ur.created_by = u.id
     WHERE a.id = ? AND ur.record_type = 'usage'
-    ORDER BY d.name, m.name, ur.created_at
+    ORDER BY COALESCE(ur.usage_date, DATE(ur.created_at)) DESC, ur.created_at DESC
   `, [activity_id]);
 
   const data = rows.map(row => ({
@@ -1115,7 +1128,8 @@ router.get('/export/customer-usage', (req, res) => {
     '领用数量': row.quantity,
     '客户名称': row.customer_name || '',
     '录入员工': row.created_by_name,
-    '领用时间': formatDate(row.created_at),
+    '领用时间': row.usage_date || formatDate(row.created_at),
+    '录入时间': formatDate(row.created_at),
     '备注': maskSensitive(row.remark)
   }));
 
@@ -1140,6 +1154,7 @@ router.get('/export/usage', (req, res) => {
       ur.customer_name,
       u.name AS created_by_name,
       ur.created_at AS raw_time,
+      ur.usage_date,
       ur.remark,
       CASE ur.record_type WHEN 'recovery' THEN '回收' ELSE '领用' END AS type
     FROM usage_records ur
@@ -1157,6 +1172,7 @@ router.get('/export/usage', (req, res) => {
     '领用客户': row.customer_name,
     '录入员工': row.created_by_name,
     '记录类型': row.type,
+    '领用时间': row.usage_date || (row.type === '领用' ? formatDate(row.raw_time) : ''),
     '时间': formatDate(row.raw_time),
     '备注': maskSensitive(row.remark)
   }));

@@ -54,7 +54,7 @@
                   <%= record.material_name %>
                   <span class="badge bg-primary"><%= record.quantity %> <%= record.unit %></span>
                 </div>
-                <div class="small text-muted"><%= record.activity_name %> · <%= record.created_at %></div>
+                <div class="small text-muted"><%= record.activity_name %> · <%= record.usage_date || record.created_at %></div>
                 <div class="small text-muted">客户：<%= record.customer_name_masked || '-' %></div>
               </div>
             <% }); %>

@@ -129,6 +129,7 @@ function migrateDatabase() {
   changed = addColumnIfMissing('department_allocations', 'updated_at', 'DATETIME') || changed;
   changed = addColumnIfMissing('usage_records', 'customer_name', 'TEXT') || changed;
   changed = addColumnIfMissing('usage_records', 'record_type', "TEXT DEFAULT 'usage'") || changed;
+  changed = addColumnIfMissing('usage_records', 'usage_date', 'TEXT') || changed;
 
   const hasAllocationLogs = query("SELECT name FROM sqlite_master WHERE type='table' AND name='allocation_logs'").length > 0;
   if (!hasAllocationLogs) {
